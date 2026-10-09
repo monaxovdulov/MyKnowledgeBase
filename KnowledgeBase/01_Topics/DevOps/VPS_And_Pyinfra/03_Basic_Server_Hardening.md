@@ -31,6 +31,15 @@ sudo ufw enable             # ...потом включаем (на вопрос 
 sudo ufw status             # должно быть: OpenSSH ALLOW
 ```
 
+> ⚠️ Если на сервере уже работают сайты/боты (например, nginx на 80/443) — разреши их **до** `ufw enable`, иначе они уйдут в офлайн:
+>
+> ```bash
+> sudo ufw allow 80/tcp
+> sudo ufw allow 443/tcp
+> ```
+>
+> Проверить, что вообще слушают порты: `sudo ss -tulpn`.
+
 ## fail2ban — бан за перебор паролей
 
 ```bash
