@@ -9,7 +9,7 @@
 В PowerShell:
 
 ```powershell
-ssh-keygen -t ed25519 -C "roman-laptop"
+ssh-keygen -t ed25519 -C "devuser-laptop"
 ```
 
 - Путь по умолчанию `C:\Users\<ты>\.ssh\id_ed25519` — оставляем.
@@ -19,16 +19,16 @@ ssh-keygen -t ed25519 -C "roman-laptop"
 
 ## Кладём публичный ключ на сервер
 
-В PowerShell одной командой (введёт пароль `roman`):
+В PowerShell одной командой (введёт пароль `devuser`):
 
 ```powershell
-type $env:USERPROFILE\.ssh\id_ed25519.pub | ssh roman@ВАШ_IP "mkdir -p ~/.ssh && chmod 700 ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
+type $env:USERPROFILE\.ssh\id_ed25519.pub | ssh devuser@ВАШ_IP "mkdir -p ~/.ssh && chmod 700 ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
 ```
 
 ## Проверяем
 
 ```powershell
-ssh roman@ВАШ_IP
+ssh devuser@ВАШ_IP
 ```
 
 Пускает без пароля (или спрашивает passphrase ключа) — ключ работает.
@@ -40,7 +40,7 @@ ssh roman@ВАШ_IP
 ```sshconfig
 Host vps
     HostName ВАШ_IP
-    User roman
+    User devuser
     IdentityFile ~/.ssh/id_ed25519
 ```
 

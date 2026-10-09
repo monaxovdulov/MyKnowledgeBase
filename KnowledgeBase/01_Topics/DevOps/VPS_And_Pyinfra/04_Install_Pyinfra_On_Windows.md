@@ -37,7 +37,7 @@ pyinfra vps exec -- hostname
 Без алиаса то же самое явно:
 
 ```powershell
-pyinfra ВАШ_IP --ssh-user roman exec -- hostname
+pyinfra ВАШ_IP --ssh-user devuser exec -- hostname
 ```
 
 ## Факты — чтение состояния сервера

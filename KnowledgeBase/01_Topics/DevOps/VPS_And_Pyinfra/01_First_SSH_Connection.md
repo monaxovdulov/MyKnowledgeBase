@@ -26,10 +26,10 @@ ssh root@ВАШ_IP
 apt update && apt install -y sudo
 
 # создаём пользователя (спросит пароль — задай нормальный)
-adduser roman
+adduser devuser
 
 # добавляем в группу sudo
-usermod -aG sudo roman
+usermod -aG sudo devuser
 ```
 
 ## Проверяем вход новым пользователем
@@ -37,7 +37,7 @@ usermod -aG sudo roman
 **Не закрывая** root-сессию, открываем второе окно PowerShell:
 
 ```powershell
-ssh roman@ВАШ_IP
+ssh devuser@ВАШ_IP
 sudo whoami    # после ввода пароля должно ответить: root
 ```
 
@@ -49,7 +49,7 @@ sudo whoami    # после ввода пароля должно ответит�
 
 ## Проверь себя
 
-- [ ] `ssh roman@IP` пускает без ошибок
+- [ ] `ssh devuser@IP` пускает без ошибок
 - [ ] `sudo whoami` → `root`
 
 #vps #debian #ssh

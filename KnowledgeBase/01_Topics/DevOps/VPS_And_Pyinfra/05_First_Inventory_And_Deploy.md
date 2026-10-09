@@ -21,7 +21,7 @@ git init
 vps = [
     ("aeza-vps", {
         "ssh_hostname": "ВАШ_IP",
-        "ssh_user": "roman",
+        "ssh_user": "devuser",
         "_sudo": True,           # все операции выполнять через sudo
     }),
 ]

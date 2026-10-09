@@ -30,7 +30,7 @@ from pyinfra.operations import apt, files, server, systemd
 # --- пользователь ---
 server.user(
     name="Admin user with sudo",
-    user="roman",
+    user="devuser",
     shell="/bin/bash",
     groups=["sudo"],
     append=True,
@@ -39,7 +39,7 @@ server.user(
 
 server.user_authorized_keys(
     name="Authorize laptop key",
-    user="roman",
+    user="devuser",
     public_keys=["files/id_ed25519.pub"],  # принимает и пути к файлам
 )
 
