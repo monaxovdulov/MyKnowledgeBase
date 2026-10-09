@@ -13,9 +13,24 @@ ssh-keygen -t ed25519 -C "devuser-laptop"
 ```
 
 - Путь по умолчанию `C:\Users\<ты>\.ssh\id_ed25519` — оставляем.
-- Passphrase: лучше задать — тогда ключ бесполезен даже при угоне файла.
+- Passphrase: лучше задать — это пароль на сам файл ключа: украденный `id_ed25519` без passphrase бесполезен.
 
 Получаем два файла: `id_ed25519` (приватный, никому не показываем) и `id_ed25519.pub` (публичный, его кладём на сервер).
+
+### Как не вводить passphrase каждый раз — ssh-agent
+
+Агент держит расшифрованный ключ в памяти: passphrase вводится **один раз за сессию Windows**, дальше `ssh vps` работает без вопросов.
+
+```powershell
+# один раз, PowerShell от администратора:
+Set-Service ssh-agent -StartupType Automatic
+Start-Service ssh-agent
+
+# после каждой перезагрузки (здесь и спросят passphrase):
+ssh-add $env:USERPROFILE\.ssh\id_ed25519
+```
+
+Ключ уже создан без passphrase? Добавить задним числом: `ssh-keygen -p -f $env:USERPROFILE\.ssh\id_ed25519`.
 
 ## Кладём публичный ключ на сервер
 
