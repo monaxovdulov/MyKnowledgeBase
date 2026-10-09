@@ -45,4 +45,13 @@ type $env:USERPROFILE\.ssh\id_ed25519.pub | ssh -o PubkeyAuthentication=no devus
 
 Посмотреть ключи в агенте: `ssh-add -l`.
 
+**Затык 3 — `Permission denied`: вводил пароль root вместо devuser.** Спрашивают пароль именно того пользователя, под которым логинимся (`devuser@IP` → пароль devuser, а не root). Пароль devuser забыт → сброс из-под root (root-вход по паролю пока включён):
+
+```powershell
+ssh -o PubkeyAuthentication=no root@46.226.165.215   # входим по паролю root
+passwd devuser                                        # задаём devuser новый пароль
+```
+
+**Урок:** пароль devuser нужен для `sudo` — записать в менеджер паролей сразу при создании.
+
 #vps #debian
