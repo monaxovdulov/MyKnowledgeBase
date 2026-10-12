@@ -15,11 +15,11 @@
 - ✅ pubkey на сервере (`authorized_keys` у devuser) — команда с `-o PubkeyAuthentication=no`, пароль devuser
 - ✅ вход `ssh devuser@IP` по ключу проверен — попал в `devuser@giorno` (спросил passphrase ключа)
 - ✅ ssh-agent на Windows настроен: `Set-Service ssh-agent` Automatic + `ssh-add` — ключ в агенте, passphrase до перезагрузки не спросит
-- ⬜ алиас `vps` в `~/.ssh/config` — не создан
+- ✅ алиас `vps` в `~/.ssh/config` создан — `ssh vps` входит без вопросов (агент + конфиг); pyinfra сможет звать хост по имени `vps`
 - ⬜ sshd не трогали: root-вход и парольный вход **включены** (шаг 3 впереди)
 - ⬜ `apt upgrade` (114 пакетов), ufw, fail2ban, unattended-upgrades, Docker — не ставились
 
-**Следующий шаг:** алиас `vps` в `~/.ssh/config` → отключение парольного/root входа по [[03_Basic_Server_Hardening]] → ufw + fail2ban + `apt upgrade`.
+**Следующий шаг:** отключение парольного/root входа по [[03_Basic_Server_Hardening]] (drop-in `00-hardening.conf` + `sshd -t` + `reload`, проверка из нового окна) → ufw + fail2ban + `apt upgrade`.
 
 ## 2026-10-09 — Шаг 1: sudo и пользователь devuser
 
