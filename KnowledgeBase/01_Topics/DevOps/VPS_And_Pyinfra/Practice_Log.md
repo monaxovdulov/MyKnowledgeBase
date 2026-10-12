@@ -17,9 +17,12 @@
 - ✅ ssh-agent на Windows настроен: `Set-Service ssh-agent` Automatic + `ssh-add` — ключ в агенте, passphrase до перезагрузки не спросит
 - ✅ алиас `vps` в `~/.ssh/config` создан — `ssh vps` входит без вопросов (агент + конфиг); pyinfra сможет звать хост по имени `vps`
 - ✅ sshd захарден: drop-in `00-hardening.conf` (`PermitRootLogin no`, `PasswordAuthentication no`) + `sshd -t` + `reload`; `ssh vps` входит, `ssh root@IP` → `Permission denied (publickey)` — пароль не спрашивается вообще
-- ⬜ `apt upgrade` (114 пакетов), ufw, fail2ban, unattended-upgrades, Docker — не ставились
+- ✅ `apt update && apt upgrade -y` + `apt install ufw fail2ban unattended-upgrades` — выполнены
+- ✅ ufw включён: `allow OpenSSH` → `enable` → «Firewall is active and enabled on system startup», сессия не порвалась
+- ✅ fail2ban: `jail.local` (`[sshd] enabled = true`) + `enable --now` — запущен
+- ⬜ Docker (`docker.io`, `docker-compose-v2`, `usermod -aG docker devuser`) — не ставили
 
-**Следующий шаг:** `apt upgrade` + ufw (`allow OpenSSH` + `enable`) + fail2ban (`jail.local` + `enable --now`) + unattended-upgrades → дальше Docker и шаг 4 (pyinfra).
+**Следующий шаг:** проверки `sudo ufw status verbose` + `sudo fail2ban-client status sshd` → Docker → шаг 4 [[04_Install_Pyinfra_On_Windows]] (pyinfra на Windows).
 
 ## 2026-10-09 — Шаг 1: sudo и пользователь devuser
 
@@ -78,5 +81,7 @@ passwd devuser                                        # задаём devuser н�
 - `Set-Service ssh-agent -StartupType Automatic` + `Start-Service ssh-agent` + `ssh-add ...\id_ed25519` → `Identity added` — passphrase до перезагрузки не спрашивает.
 - Алиас `Host vps` в `~/.ssh/config` → `ssh vps` входит молча.
 - Харденинг по [[03_Basic_Server_Hardening]]: drop-in `/etc/ssh/sshd_config.d/00-hardening.conf` (`PermitRootLogin no`, `PasswordAuthentication no`), `sudo sshd -t` → `systemctl reload ssh`. Проверка из нового окна: `ssh vps` пускает, `ssh root@IP` → `Permission denied (publickey)` — парольный вход закрыт полностью, сессию не порвало.
+- Защита включена: `apt upgrade -y` + `ufw allow OpenSSH && ufw enable` («Firewall is active and enabled on system startup») + `jail.local` (`[sshd] enabled = true`) + `systemctl enable --now fail2ban`. Сообщение «Command may disrupt existing ssh connections» — штатное предупреждение ufw, `y` + OpenSSH уже разрешён → сессия жива.
+- **Вопрос: забанит ли fail2ban за частые входы через VPN?** Нет — банятся провалы (дефолт 5 неудач за 10 мин → бан ~10 мин), успешные входы по ключу не считаются. Риск с VPN — общий выходной IP: чужие брутфорсы с того же IP могут достаться тебе. Выходы из бана: подождать bantime / другой IP (выход VPN, хотспот) / веб-консоль aeza → `sudo fail2ban-client unban <IP>` (или `--all`). `ignoreip` белый список есть, но с динамическим IP бесполезен.
 
 #vps #debian
