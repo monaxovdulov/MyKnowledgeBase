@@ -16,6 +16,7 @@
 | 5 | [[05_First_Inventory_And_Deploy]] | `inventory.py` + `deploy.py`, идемпотентность |
 | 6 | [[06_Hardening_As_Code]] | Шаги 1–3 одним деплоем |
 | 7 | [[07_Next_Steps]] | Факты, тест в Docker, несколько серверов |
+| 8 | [[08_Bootstrap_Second_Server]] | Повторяемость: второй сервер двумя прогонами pyinfra |
 
 Журнал фактического прохождения на живом сервере: [[Practice_Log]]
 
