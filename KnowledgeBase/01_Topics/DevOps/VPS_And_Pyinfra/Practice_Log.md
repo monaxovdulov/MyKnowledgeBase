@@ -16,10 +16,10 @@
 - ✅ вход `ssh devuser@IP` по ключу проверен — попал в `devuser@giorno` (спросил passphrase ключа)
 - ✅ ssh-agent на Windows настроен: `Set-Service ssh-agent` Automatic + `ssh-add` — ключ в агенте, passphrase до перезагрузки не спросит
 - ✅ алиас `vps` в `~/.ssh/config` создан — `ssh vps` входит без вопросов (агент + конфиг); pyinfra сможет звать хост по имени `vps`
-- ⬜ sshd не трогали: root-вход и парольный вход **включены** (шаг 3 впереди)
+- ✅ sshd захарден: drop-in `00-hardening.conf` (`PermitRootLogin no`, `PasswordAuthentication no`) + `sshd -t` + `reload`; `ssh vps` входит, `ssh root@IP` → `Permission denied (publickey)` — пароль не спрашивается вообще
 - ⬜ `apt upgrade` (114 пакетов), ufw, fail2ban, unattended-upgrades, Docker — не ставились
 
-**Следующий шаг:** отключение парольного/root входа по [[03_Basic_Server_Hardening]] (drop-in `00-hardening.conf` + `sshd -t` + `reload`, проверка из нового окна) → ufw + fail2ban + `apt upgrade`.
+**Следующий шаг:** `apt upgrade` + ufw (`allow OpenSSH` + `enable`) + fail2ban (`jail.local` + `enable --now`) + unattended-upgrades → дальше Docker и шаг 4 (pyinfra).
 
 ## 2026-10-09 — Шаг 1: sudo и пользователь devuser
 
@@ -72,5 +72,11 @@ passwd devuser                                        # задаём devuser н�
 **Дизайн-разбор:** обсудили «как не делать одно и то же на следующем сервере». Ответ: первый сервер — руками (обучение), второй и дальше — два прогона pyinfra: `bootstrap.py` (root + `--ssh-password-prompt`, только юзер+ключ, безопасно от локаута) → проверка `ssh devuser` → `deploy.py` из шага 6. Оформлено заметкой [[08_Bootstrap_Second_Server]]. Плюс исследование переносимости ключа между машинами → [[SSH_Key_Portability]] (выбор Roman'а: Bitwarden SSH-агент).
 
 **Ключ на сервере + вход по ключу работают.** Команда копирования (`type ... | ssh -o PubkeyAuthentication=no devuser@IP "..."`) прошла молча — отсутствие вывода = успех, pubkey дописан в `~/.ssh/authorized_keys`. Проверка `ssh devuser@46.226.165.215` → спросил passphrase ключа → `devuser@giorno` без пароля сервера. Урок: «молчит» ≠ «не сработало» у Unix-команд; passphrase спрашивает при каждом входе, пока ключ не в ssh-agent (см. раздел агента в [[02_SSH_Keys]]).
+
+## 2026-10-12 — Шаг 2 (финал) и Шаг 3 (начало): агент, алиас, отключение паролей
+
+- `Set-Service ssh-agent -StartupType Automatic` + `Start-Service ssh-agent` + `ssh-add ...\id_ed25519` → `Identity added` — passphrase до перезагрузки не спрашивает.
+- Алиас `Host vps` в `~/.ssh/config` → `ssh vps` входит молча.
+- Харденинг по [[03_Basic_Server_Hardening]]: drop-in `/etc/ssh/sshd_config.d/00-hardening.conf` (`PermitRootLogin no`, `PasswordAuthentication no`), `sudo sshd -t` → `systemctl reload ssh`. Проверка из нового окна: `ssh vps` пускает, `ssh root@IP` → `Permission denied (publickey)` — парольный вход закрыт полностью, сессию не порвало.
 
 #vps #debian
