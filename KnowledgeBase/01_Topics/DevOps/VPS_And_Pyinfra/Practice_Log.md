@@ -21,9 +21,9 @@
 - ✅ ufw включён: `allow OpenSSH` → `enable` → «Firewall is active and enabled on system startup», сессия не порвалась
 - ✅ fail2ban: `jail.local` (`[sshd] enabled = true`) + `enable --now` — запущен
 - ⬜ Docker (`docker.io`, `docker-compose-v2`, `usermod -aG docker devuser`) — не ставили
-- ⬜ **Tailscale** (план Roman'а): install.sh → `tailscale up` → вход по 100.x → потом `ufw allow in on tailscale0` и `delete allow OpenSSH` — SSH закрываем из публички, только tailnet
+- ⏳ **Tailscale**: сервер установлен и в tailnet как `giorno-1` (виден в админ-консоли). Осталось: клиент на Windows → `ssh devuser@100.x` → `ufw allow in on tailscale0` + `delete allow OpenSSH` — SSH закрываем из публички, только tailnet. Опционально: exit-node (sysctl forwarding + `tailscale set --advertise-exit-node` + аппрув в консоли)
 
-**Следующий шаг:** Tailscale на сервере + клиент на Windows → проверка `ssh devuser@100.x` → закрыть публичный 22 → Docker → шаг 4 [[04_Install_Pyinfra_On_Windows]] (pyinfra на Windows).
+**Следующий шаг:** Tailscale-клиент на Windows → `ssh devuser@100.x` → закрыть публичный 22 → Docker → шаг 4 [[04_Install_Pyinfra_On_Windows]] (pyinfra на Windows).
 
 ## 2026-10-09 — Шаг 1: sudo и пользователь devuser
 
