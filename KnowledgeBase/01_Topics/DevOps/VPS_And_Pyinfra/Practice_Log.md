@@ -12,12 +12,13 @@
 
 - ✅ sudo установлен, `devuser` создан (uid 1000) и в группе `sudo`
 - ✅ SSH-ключ `id_ed25519` (ed25519, passphrase есть) сгенерирован на ПК (`C:\Users\monax\.ssh\`)
-- ⏳ pubkey **ещё не на сервере** — команда копирования готова (с `-o PubkeyAuthentication=no`), вводить пароль **devuser** (он есть, сброс не нужен)
-- ⬜ вход `ssh devuser@IP` по ключу — не проверен; алиас `vps` в `~/.ssh/config` — не создан
+- ✅ pubkey на сервере (`authorized_keys` у devuser) — команда с `-o PubkeyAuthentication=no`, пароль devuser
+- ✅ вход `ssh devuser@IP` по ключу проверен — попал в `devuser@giorno` (спросил passphrase ключа)
+- ⬜ алиас `vps` в `~/.ssh/config` — не создан; ssh-agent на Windows — не настроен (passphrase спрашивает каждый раз)
 - ⬜ sshd не трогали: root-вход и парольный вход **включены** (шаг 3 впереди)
 - ⬜ `apt upgrade` (114 пакетов), ufw, fail2ban, unattended-upgrades, Docker — не ставились
 
-**Следующий шаг:** скопировать pubkey командой из затыка 2 → `ssh devuser@46.226.165.215` → `sudo whoami` → дальше [[03_Basic_Server_Hardening]].
+**Следующий шаг:** алиас `vps` в `~/.ssh/config` + ssh-agent (`Set-Service ssh-agent` + `ssh-add`) → отключение парольного/root входа по [[03_Basic_Server_Hardening]] → ufw + fail2ban + `apt upgrade`.
 
 ## 2026-10-09 — Шаг 1: sudo и пользователь devuser
 
@@ -67,6 +68,8 @@ passwd devuser                                        # задаём devuser н�
 
 **Урок:** пароль devuser нужен для `sudo` — записать в менеджер паролей сразу при создании.
 
-**Дизайн-разбор:** обсудили «как не делать одно и то же на следующем сервере». Ответ: первый сервер — руками (обучение), второй и дальше — два прогона pyinfra: `bootstrap.py` (root + `--ssh-password-prompt`, только юзер+ключ, безопасно от локаута) → проверка `ssh devuser` → `deploy.py` из шага 6. Оформлено заметкой [[08_Bootstrap_Second_Server]].
+**Дизайн-разбор:** обсудили «как не делать одно и то же на следующем сервере». Ответ: первый сервер — руками (обучение), второй и дальше — два прогона pyinfra: `bootstrap.py` (root + `--ssh-password-prompt`, только юзер+ключ, безопасно от локаута) → проверка `ssh devuser` → `deploy.py` из шага 6. Оформлено заметкой [[08_Bootstrap_Second_Server]]. Плюс исследование переносимости ключа между машинами → [[SSH_Key_Portability]] (выбор Roman'а: Bitwarden SSH-агент).
+
+**Ключ на сервере + вход по ключу работают.** Команда копирования (`type ... | ssh -o PubkeyAuthentication=no devuser@IP "..."`) прошла молча — отсутствие вывода = успех, pubkey дописан в `~/.ssh/authorized_keys`. Проверка `ssh devuser@46.226.165.215` → спросил passphrase ключа → `devuser@giorno` без пароля сервера. Урок: «молчит» ≠ «не сработало» у Unix-команд; passphrase спрашивает при каждом входе, пока ключ не в ssh-agent (см. раздел агента в [[02_SSH_Keys]]).
 
 #vps #debian
