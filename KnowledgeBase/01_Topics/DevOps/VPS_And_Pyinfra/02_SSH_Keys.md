@@ -54,8 +54,46 @@ ssh-add $env:USERPROFILE\.ssh\id_ed25519
 В PowerShell одной командой (введёт пароль `devuser`):
 
 ```powershell
-type $env:USERPROFILE\.ssh\id_ed25519.pub | ssh devuser@ВАШ_IP "mkdir -p ~/.ssh && chmod 700 ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
+type $env:USERPROFILE\.ssh\id_ed25519.pub | ssh -o PubkeyAuthentication=no devuser@ВАШ_IP "mkdir -p ~/.ssh && chmod 700 ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
 ```
+
+`-o PubkeyAuthentication=no` — не предлагать ключи из ssh-agent, сразу пароль: без флага сервер может оборвать по `Too many authentication failures` до запроса пароля (см. [[Practice_Log]]).
+
+На Linux/macOS/Git Bash то же самое делает готовая утилита: `ssh-copy-id devuser@ВАШ_IP`.
+
+### Переносимый вариант — функция в PowerShell-профиле
+
+Чтобы не помнить длинную команду, один раз записываем функцию в `$PROFILE` —
+файл, который PowerShell грузит при каждом старте:
+
+```powershell
+notepad $PROFILE   # если файла нет — согласиться создать
+```
+
+Вставляем и сохраняем:
+
+```powershell
+function Copy-SshKey {
+    param(
+        [Parameter(Mandatory=$true)][string]$Target,  # например devuser@46.226.165.215
+        [string]$Key = "$env:USERPROFILE\.ssh\id_ed25519.pub"
+    )
+    Get-Content $Key | ssh -o PubkeyAuthentication=no $Target "mkdir -p ~/.ssh && chmod 700 ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
+}
+```
+
+Активируем без перезапуска: `. $PROFILE` (или просто новое окно). Теперь для
+любого сервера достаточно:
+
+```powershell
+Copy-SshKey devuser@ВАШ_IP
+```
+
+Для другого ключа: `Copy-SshKey devuser@IP -Key C:\Users\<ты>\.ssh\id_rsa.pub`.
+
+> Когда серверов станет больше одного — эта команда сменяется прогоном
+> `bootstrap.py` из [[08_Bootstrap_Second_Server]]: ключ кладёт
+> `server.user_authorized_keys`, а не ручная команда.
 
 ## Проверяем
 
