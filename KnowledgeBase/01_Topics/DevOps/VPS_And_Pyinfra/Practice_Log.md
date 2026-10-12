@@ -21,8 +21,9 @@
 - ✅ ufw включён: `allow OpenSSH` → `enable` → «Firewall is active and enabled on system startup», сессия не порвалась
 - ✅ fail2ban: `jail.local` (`[sshd] enabled = true`) + `enable --now` — запущен
 - ⬜ Docker (`docker.io`, `docker-compose-v2`, `usermod -aG docker devuser`) — не ставили
+- ⬜ **Tailscale** (план Roman'а): install.sh → `tailscale up` → вход по 100.x → потом `ufw allow in on tailscale0` и `delete allow OpenSSH` — SSH закрываем из публички, только tailnet
 
-**Следующий шаг:** проверки `sudo ufw status verbose` + `sudo fail2ban-client status sshd` → Docker → шаг 4 [[04_Install_Pyinfra_On_Windows]] (pyinfra на Windows).
+**Следующий шаг:** Tailscale на сервере + клиент на Windows → проверка `ssh devuser@100.x` → закрыть публичный 22 → Docker → шаг 4 [[04_Install_Pyinfra_On_Windows]] (pyinfra на Windows).
 
 ## 2026-10-09 — Шаг 1: sudo и пользователь devuser
 
@@ -83,5 +84,6 @@ passwd devuser                                        # задаём devuser н�
 - Харденинг по [[03_Basic_Server_Hardening]]: drop-in `/etc/ssh/sshd_config.d/00-hardening.conf` (`PermitRootLogin no`, `PasswordAuthentication no`), `sudo sshd -t` → `systemctl reload ssh`. Проверка из нового окна: `ssh vps` пускает, `ssh root@IP` → `Permission denied (publickey)` — парольный вход закрыт полностью, сессию не порвало.
 - Защита включена: `apt upgrade -y` + `ufw allow OpenSSH && ufw enable` («Firewall is active and enabled on system startup») + `jail.local` (`[sshd] enabled = true`) + `systemctl enable --now fail2ban`. Сообщение «Command may disrupt existing ssh connections» — штатное предупреждение ufw, `y` + OpenSSH уже разрешён → сессия жива.
 - **Вопрос: забанит ли fail2ban за частые входы через VPN?** Нет — банятся провалы (дефолт 5 неудач за 10 мин → бан ~10 мин), успешные входы по ключу не считаются. Риск с VPN — общий выходной IP: чужие брутфорсы с того же IP могут достаться тебе. Выходы из бана: подождать bantime / другой IP (выход VPN, хотспот) / веб-консоль aeza → `sudo fail2ban-client unban <IP>` (или `--all`). `ignoreip` белый список есть, но с динамическим IP бесполезен.
+- **План: Tailscale** — Roman ставит tailnet для входа с Windows. Это апгрейд всей схемы: после проверки `ssh devuser@100.x` публичный порт 22 закрываем (`ufw allow in on tailscale0` + `ufw delete allow OpenSSH`) — SSH будет существовать только внутри tailnet; fail2ban/брутфорс из интернета вообще исчезают как класс. Правило то же, что с паролями: новый путь проверен → старый закрываем.
 
 #vps #debian
