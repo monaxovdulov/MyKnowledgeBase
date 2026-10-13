@@ -8,7 +8,7 @@
 """
 from pyinfra import host
 from pyinfra.facts.files import File
-from pyinfra.operations import server
+from pyinfra.operations import files, server
 
 DEVUSER = "devuser"
 HOME = f"/home/{DEVUSER}"
@@ -29,6 +29,55 @@ def devin_cli():
         )
     else:
         host.noop("devin cli уже установлен — пропускаю установку")
+
+
+def hermes_runtime():
+    """Hermes-агенты: общий каркас ~/hermes-agents + образ hermes-agent.
+
+    Модель изоляции (SECURITY.md hermes-agent): граница — ОС-изоляция,
+    поэтому КАЖДЫЙ агент = свой контейнер поверх одного образа.
+    Здесь поднимается только каркас и образ; конкретного агента
+    (family, students...) создаёт оператор копированием шаблона —
+    см. ~/hermes-agents/README.md. Секреты агентов кодом не ставим.
+    """
+    server.shell(
+        name="каркас ~/hermes-agents",
+        commands=[
+            f"mkdir -p {HOME}/hermes-agents",
+            f"mkdir -p {HOME}/ai-projects",
+        ],
+    )
+    # исходники с официальным Dockerfile — один клон на всех агентов
+    if not host.get_fact(File, path=f"{HOME}/ai-projects/hermes-agent/Dockerfile"):
+        server.shell(
+            name="clone hermes-agent",
+            commands=[
+                f"git clone --depth 1 https://github.com/NousResearch/hermes-agent "
+                f"{HOME}/ai-projects/hermes-agent"
+            ],
+        )
+    else:
+        host.noop("hermes-agent уже склонирован")
+    # образ собирается долго — пропускаем если уже есть тег hermes-agent
+    server.shell(
+        name="docker build hermes-agent (если нет)",
+        commands=[
+            f"docker image inspect hermes-agent >/dev/null 2>&1 || "
+            f"docker build -t hermes-agent {HOME}/ai-projects/hermes-agent"
+        ],
+    )
+    files.put(
+        name="шаблон compose для агента",
+        src="files/hermes-agent.compose.yml",
+        dest=f"{HOME}/hermes-agents/agent.compose.template.yml",
+        user=DEVUSER, group=DEVUSER,
+    )
+    files.put(
+        name="README каркаса агентов",
+        src="files/hermes-agents.README.md",
+        dest=f"{HOME}/hermes-agents/README.md",
+        user=DEVUSER, group=DEVUSER,
+    )
 
 
 def github_cli():
@@ -54,3 +103,4 @@ def github_cli():
 
 devin_cli()
 github_cli()
+hermes_runtime()

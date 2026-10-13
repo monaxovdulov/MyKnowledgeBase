@@ -43,9 +43,10 @@
 - ✅ `gh auth` на сервере — Roman прогнал `gh auth login` вживую (SSH-протокол + paste token) → `Logged in as monaxovdulov`; `gh repo create` и пр. теперь доступны агенту.
 - ✅ **SWAPP жив**: `https://swapp.apps.botops.ru` — root/health/webhook все 200; контейнеры `eco-swapp-minsk-app-1` + `-db-1` Up; webhook перерегистрирован (`setWebhook url=/telegram/webhook + secret_token`). chat_id группы вытащил через getUpdates: `-1003931924827` («тест группа SWAP»).
 - ⬜ `rabushko.67.barabashka.pro` — ждёт DNS: `barabashka.pro` сейчас NXDOMAIN у публичных резолверов — Roman уточняет у провайдера; override выключен в `.disabled` (его неудачные ACME-ретраи держали лимитер), вернуть после фикса DNS → reload.
-- ⬜ дальше: Hermes → харденинг-кодом (шаг 6)
+- ⏳ **Hermes-каркас ставится**: модель «1 агент = 1 контейнер» — образ `hermes-agent` (официальный Dockerfile), `~/hermes-agents/<имя>/{compose.yml,.env,home}`; кодом в `agents.py::hermes_runtime()`. Первый агент — family: ждёт от Roman'а модель+ключ и токен нового TG-бота.
+- ⬜ дальше: харденинг-кодом (шаг 6)
 
-**Следующий шаг:** Hermes-агенты (семейный первый) → потом шаг 6.
+**Следующий шаг:** Roman приносит (1) модель/API-ключ для family-агента, (2) токен бота из BotFather → поднимаю `hermes-family` контейнер → потом шаг 6.
 
 ## 2026-10-09 — Шаг 1: sudo и пользователь devuser
 
@@ -141,3 +142,11 @@ passwd devuser                                        # задаём devuser н�
 - **Учёт по docker.md выполнен полностью:** README.md с таблицей в staging-overrides (создан — не существовал), строка в «Соседние маршруты» реестра обновлена, карточка сервиса уже была. Правило занесено в код: `files/swapp.caddy` с `tls force_automate` + комментарий почему.
 
 #vps #debian
+
+## 2026-10-13 — Hermes: модель изоляции и каркас
+
+- **Выбор модели.** По SECURITY.md hermes-agent единственная настоящая граница — ОС-изоляция; два постулата: terminal-backend (команды в песочнице, но python-процесс агента на хосте) vs whole-process wrap (весь процесс в контейнере). Взяли второй: **1 агент = 1 контейнер** на общем образе — официальный `Dockerfile` репо (s6-overlay `/init`, ремап `HERMES_UID/GID`, state в `/opt/data`).
+- **Раскладка на сервере:** `~/hermes-agents/` с `README.md` + `agent.compose.template.yml`; агент = каталог `<имя>/{compose.yml, .env(600), home→/opt/data}`. Контейнер `hermes-<имя>` в bridge-сети без опубликованных портов — Telegram gateway работает по исходящему long-polling, входящие не нужны. `restart: unless-stopped` даёт автостарт через docker daemon.
+- **Кодом:** `agents.py::hermes_runtime()` — mkdir каркаса, guarded clone `NousResearch/hermes-agent` в `~/ai-projects`, guarded `docker build -t hermes-agent`, `files.put` шаблона и README. Секреты агентов в код не идут — per-agent `.env` вручную.
+- **Секреты модели:** `.env` агента — только секреты (по правилам самого hermes: поведение в config.yaml, .env = secrets only).
+- Первый агент `family`: каталог создан; ждёт модель+ключ и TG-бот токен от Roman'а.

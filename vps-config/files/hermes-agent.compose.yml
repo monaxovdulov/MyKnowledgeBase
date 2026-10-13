@@ -1,0 +1,19 @@
+# Шаблон контейнера одного hermes-агента.
+# Копия лежит в ~/hermes-agents/<имя>/compose.yml на сервере.
+# Модель изоляции (SECURITY.md hermes-agent): единственная граница — ОС-изоляция,
+# поэтому весь процесс агента живёт в контейнере; наружу не публикуется ни один порт
+# (Telegram gateway работает по исходящему long-polling).
+services:
+  agent:
+    image: hermes-agent
+    container_name: hermes-AGENT_NAME
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # файлы внутри home/ принадлежат devuser (1000) — без ремапа root-файлы
+      - HERMES_UID=1000
+      - HERMES_GID=1000
+    volumes:
+      - ./home:/opt/data
+    # bridge по умолчанию: исходящий интернет есть, входящих портов нет
+    command: ["gateway", "run"]
