@@ -50,6 +50,16 @@ docker --context vps compose -f compose.production.yml up -d
 
 Это и будет рабочий способ деплоя SWAPP: локально правишь compose → `docker --context vps compose up -d`.
 
+**TUI-аналог Docker Desktop — lazydocker** (от автора lazygit): контейнеры, образы, volumes, логи, статы, compose — всё в терминале с винды, работает поверх context:
+
+```powershell
+winget install -e --id JesseDuffield.lazydocker
+docker context use vps
+lazydocker
+```
+
+Мелкие аналоги: `ctop` (htop по контейнерам), `dive` (разбор слоёв образа).
+
 ## 4. Гигиена compose-файлов
 
 - `restart: unless-stopped` — сервис переживает ребут и падения.
