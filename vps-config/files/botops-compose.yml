@@ -10,6 +10,9 @@ services:
     volumes:
       - /srv/botops/Caddyfile:/etc/caddy/Caddyfile:ro
       - /srv/botops/staging-overrides:/srv/overrides:ro
+      # статика codex-vibe-data (artifacts/live) для file_server-маршрутов
+      # на не-botops доменах; caddy_data сам сидит на /data — не конфликтовать
+      - /home/devuser/codex-vibe-data:/srv/data:ro
       - caddy_data:/data
       - caddy_config:/config
     networks:

@@ -127,3 +127,26 @@ server.shell(
     name="Общий Caddy up",
     commands=["docker compose -f /srv/botops/compose.yml up -d"],
 )
+
+# --- маршрут лендинга rabushko на *.67.barabashka.pro -------------------------
+# Вайлдкард *.67.barabashka.pro -> 46.226.165.215 сделан у DNS-провайдера.
+# Caddy отдаёт артефакт напрямую (file_server) — vibe-router знает только
+# botops.ru, поэтому для внешнего домена прокси не нужен.
+
+files.put(
+    name="override caddy: rabushko.67.barabashka.pro",
+    src="files/rabushko.caddy",
+    dest="/srv/botops/staging-overrides/rabushko.caddy",
+    user=DEVUSER,
+    group=DEVUSER,
+)
+
+server.shell(
+    name="caddy validate + reload",
+    commands=[
+        "docker exec granit-staging-caddy-1 caddy validate --config "
+        "/etc/caddy/Caddyfile --adapter caddyfile && "
+        "docker exec granit-staging-caddy-1 caddy reload --config "
+        "/etc/caddy/Caddyfile --adapter caddyfile"
+    ],
+)

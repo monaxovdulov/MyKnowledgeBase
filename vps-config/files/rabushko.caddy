@@ -1,0 +1,7 @@
+# Лендинг А.Рабушко — статика из codex-vibe-data/live/rabushko (botops-static build).
+# TLS: обычный ACME при reload — требует A-запись rabushko.67.barabashka.pro -> 46.226.165.215.
+rabushko.67.barabashka.pro {
+	root * /srv/data/live/rabushko
+	file_server
+	encode zstd gzip
+}

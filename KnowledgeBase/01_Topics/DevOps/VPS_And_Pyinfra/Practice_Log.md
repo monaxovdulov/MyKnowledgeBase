@@ -33,10 +33,16 @@
 - ✅ dev-цепочка установлена кодом: git + build-essential + unzip (apt) + uv (~/.local/bin) + pnpm (~/.local/share/pnpm) — guarded-установки per-user, повторные прогоны чистые
 - ✅ доступ к приватным репо выдан Devin'у (student-share-codex, ops-homebase клонируются); подняты реальные `deploy/docker-compose.yml` + `Caddyfile` роутера
 - ✅ runbook восстановления → [[Botops_Restore]]; вся серверная механика — кодом `vps-config/botops.py` (/srv/botops compose+Caddyfile, сеть, symlinks, .env роутера, up контейнеров)
-- ⬜ Roman: github-ключ на сервере (Deploy keys) → клоны → `pyinfra inventory.py botops.py`
-- ⬜ дальше по треку: шаг 5–6, восстановление botops → лендинг → SWAPP → Hermes
+- ✅ github-ключ на сервере работает (`ssh -T git@github.com` → Hi monaxovdulov), все клоны на месте (`botops-deploy`, `student-share-codex`, `ops-homebase`, `MyKnowledgeBase`)
+- ✅ **botops-инфра жива**: `granit-staging-caddy-1` + `deploy-vibe-router-1` оба Up, tls-check отвечает; проверено с моего прямого SSH (tailnet-нода `devin-vm-giorno`)
+- ✅ **Devin CLI на сервере авторизован**: `~/.local/bin/devin` v3000.11.3, креды перенесены `scp credentials.toml` с Windows → `Logged in as monaxovdulov@yandex.by`, орг `monaxovdulov`; агент на сервере работает
+- ✅ **Мой прямой доступ**: pubkey в `authorized_keys` + tailscale auth key → `ssh devuser@100.82.224.13` с моей VM — проверяю и делаю на сервере сам
+- ✅ **Лендинг задеплоен**: slug `rabushko` → `botops-static deploy` → живой `https://rabushko.apps.botops.ru` (200, on-demand TLS); TG → `t.me/mosqitu`; реестр `ops-homebase` обновлён + карточка `services/rabushko-landing.md`
+- ✅ Caddy расширен кодом: монт `codex-vibe-data → /srv/data:ro` в `files/botops-compose.yml` + override `files/rabushko.caddy` (`file_server` для `rabushko.67.barabashka.pro`) + ops validate+reload в `botops.py`
+- ⬜ `rabushko.67.barabashka.pro` — ждёт DNS: `barabashka.pro` сейчас NXDOMAIN у публичных резолверов (8.8.8.8/1.1.1.1) — Roman уточняет у провайдера; как резолвится → reload caddy выпустит сертификат сам
+- ⬜ дальше: SWAPP → Hermes → харденинг-кодом (шаг 6)
 
-**Следующий шаг:** Roman прогоняет обновлённый `deploy.py` (dev-цепочка) → поднимаем botops-инфра по карте README → лендинг.
+**Следующий шаг:** DNS barabashka у Roman'а → потом SWAPP (нужны живые токены бота).
 
 ## 2026-10-09 — Шаг 1: sudo и пользователь devuser
 
@@ -114,5 +120,16 @@ passwd devuser                                        # задаём devuser н�
 
 - **Инфра botops поднята и проверена — я зашёл на сервер.** Tailscale на моей VM → `devin-vm-giorno` в tailnet, SSH devuser@100.x работает. **Разбор затыка роутера:** рестарт-луп был НЕ от ro-mount (как гадали), а от brace-расширения: `server.shell` идёт через `sh` (dash) → `mkdir -p ~/{a,b,c}` создал ОДИН литеральный каталог `{a,b,c}` → `ensureLayout` в контейнере падал с `ENOENT`. Фикс: реальные каталоги руками + в botops.py явные пути без `{}`. Также `ROUTER_ENSURE_LAYOUT` бесполезен — переменной нет в `environment:` compose-файла роутера → удалена из .env. Итог: `deploy-vibe-router-1` Up, tls-check отвечает (403 до деплоев — норма), caddy Up. Урок: server.shell ≠ bash — никаких расширений `{}`, `[[ ]]`, heredoc-фишек bash.
 - **Модель «агент на сервере».** Roman хочет агента локально на giorno → два слоя: Devin CLI на сервере (`curl install.sh | bash` → `~/.local/bin/devin`, логин — браузерная ссылка/токен; headless-флоу) + мой SSH через tailnet (auth key). Установки агентов вынесены в модуль `vps-config/agents.py` — туда же лягут hermes-профили. Handoff-док: [[Server_Agent_Handoff]].
+
+## 2026-10-13 — Первый реальный деплой: лендинг через botops-static
+
+- **Devin CLI авторизован** через перенос `credentials.toml` с Windows (`scp` в `~/.local/share/devin/`) → `Logged in as monaxovdulov@yandex.by`. Затык: `ssh vps "devin"` → `command not found` — non-interactive ssh не подхватывает `~/.local/bin` в PATH; решение — полный путь `~/.local/bin/devin` в one-liner'ах.
+- **Мой SSH на сервере поднят.** Тailscale на VM Devin → нода `devin-vm-giorno` (100.82.59.67), pubkey в `authorized_keys` devuser → `ssh devuser@100.82.224.13` работает. Теперь проверки и правки — без Roman'а как «рук».
+- **Первый деплой лендинга.** Файл `index (2).html` (949 KB, JS-рендер, фотки base64 внутри). Заглушки: `TG = USERNAME_TODO` → `t.me/mosqitu`. Деплой: `scp` → `botops-static deploy rabushko /tmp/dist-rabushko --source devin-landing --skip-public-smoke` → build `b202610131548025b1772b5`, live `https://rabushko.apps.botops.ru` → 200 (первый запрос ~8.5с — выпуск on-demand сертификата). Slug выбрал Devin: `rabushko` (фамилия, коротко, валидно по `^[a-z0-9-]{1,40}$`).
+- **Внешний домен `*.67.barabashka.pro` — через file_server, не через роутер.** Разбор: `parseHost` в `router-hosts.js` понимает только `botops.ru` → любой чужой домен падает в `unknown` → 404. Вместо прокси на роутер с rewrite — прямой `file_server` в Caddy на том же артефакте: домаунтован `codex-vibe-data → /srv/data:ro` в `files/botops-compose.yml`, override `files/rabushko.caddy` (`root /srv/data/live/rabushko; file_server`). Бонус — тот же артефакт обслуживает и apps.botops.ru. Validate+reload — ok.
+- **Затык: `barabashka.pro` не резолвится публично.** ACME упал: `NXDOMAIN looking up A for rabushko.67.barabashka.pro`. Проверка `dig @8.8.8.8/@1.1.1.1`: `barabashka.pro` вообще NXDOMAIN (даже NS не виден), хотя у Roman локально `test.67.barabashka.pro → 46.226.165.215`. Причины: зона не делегирована/свежая + не дошла до публичных резолверов, или кривой wildcard у провайдера. Урок: TLS по HTTP-01 требует, чтобы домен резолвился ВЕЗДЕ (LE ходит со своих резолверов) — «у меня резолвится» недостаточно. Override-файл ждёт: как DNS починится → `caddy reload` выпустит сертификат.
+- **Урок caddy volumes:** в `caddy:2-alpine` volume `caddy_data` уже сидит на `/data` — второй mount туда же даёт коллизию (compose молча подхватил не то). Свои каталоги — на отдельные пути (`/srv/data`).
+- **Реестр обновлён** в ops-homebase: строка в `botops-apps-registry.md` (live + соседний маршрут pending DNS) + карточка `services/rabushko-landing.md` — по правилу «registry update обязателен после ручного деплоя».
+- **Кодом перенесено в vps-config:** монт `/srv/data` в `files/botops-compose.yml`, `files/rabushko.caddy`, ops `files.put` override + `caddy validate + reload` в `botops.py` — переезд на новый сервер повторит и маршрут.
 
 #vps #debian
