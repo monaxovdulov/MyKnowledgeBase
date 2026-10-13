@@ -1,6 +1,9 @@
-# SWAPP (eco-swapp-minsk) — FastAPI+TG webhook за контейнером swapp-app:8000.
+# SWAPP (eco-swapp-minsk) — FastAPI+TG webhook. Runtime: /home/devuser/ai-projects/eco-swapp-minsk.
 # Запуск: docker compose --env-file .env -f compose.production.yml -f compose.botops.yml up -d --build db app
+# tls force_automate обязателен: без него wildcard *.apps.botops.ru on-demand policy
+# перехватывает имя и просит vibe-router, а тот отвечает 403 (live-symlink нет).
 swapp.apps.botops.ru {
-	reverse_proxy swapp-app:8000
+	tls force_automate
 	encode zstd gzip
+	reverse_proxy swapp-app:8000
 }
