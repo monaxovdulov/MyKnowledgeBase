@@ -131,5 +131,6 @@ passwd devuser                                        # задаём devuser н�
 - **Урок caddy volumes:** в `caddy:2-alpine` volume `caddy_data` уже сидит на `/data` — второй mount туда же даёт коллизию (compose молча подхватил не то). Свои каталоги — на отдельные пути (`/srv/data`).
 - **Реестр обновлён** в ops-homebase: строка в `botops-apps-registry.md` (live + соседний маршрут pending DNS) + карточка `services/rabushko-landing.md` — по правилу «registry update обязателен после ручного деплоя».
 - **Кодом перенесено в vps-config:** монт `/srv/data` в `files/botops-compose.yml`, `files/rabushko.caddy`, ops `files.put` override + `caddy validate + reload` в `botops.py` — переезд на новый сервер повторит и маршрут.
+- **GitHub CLI на сервере.** `gh` v2.62.0 в `~/.local/bin` (per-user бинарь, без sudo — паттерн uv/pnpm). Установка закодирована `github_cli()` в `agents.py`. Авторизация — одноразовый ручной шаг Roman'а: `gh auth login` в интерактивной ssh-сессии (browser-code, работает headless как devin-флоу) или PAT через `--with-token`.
 
 #vps #debian

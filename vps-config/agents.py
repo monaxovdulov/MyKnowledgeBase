@@ -31,4 +31,26 @@ def devin_cli():
         host.noop("devin cli уже установлен — пропускаю установку")
 
 
+def github_cli():
+    """GitHub CLI — агенту создавать/читать репо. Per-user бинарь в ~/.local/bin.
+
+    Авторизация ручная: `~/.local/bin/gh auth login` (интерактивная ssh-сессия,
+    браузерный код) или `gh auth login --with-token` по PAT.
+    """
+    if not host.get_fact(File, path=f"{HOME}/.local/bin/gh"):
+        server.shell(
+            name="GitHub CLI install (per-user)",
+            commands=[
+                "cd /tmp && curl -fsSL -o gh.tgz "
+                "https://github.com/cli/cli/releases/download/v2.62.0/gh_2.62.0_linux_amd64.tar.gz && "
+                "tar xzf gh.tgz && mkdir -p ~/.local/bin && "
+                "cp gh_2.62.0_linux_amd64/bin/gh ~/.local/bin/gh && "
+                "rm -rf gh.tgz gh_2.62.0_linux_amd64"
+            ],
+        )
+    else:
+        host.noop("gh уже установлен — пропускаю установку")
+
+
 devin_cli()
+github_cli()
