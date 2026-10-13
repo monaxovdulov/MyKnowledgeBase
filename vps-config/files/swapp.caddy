@@ -1,0 +1,6 @@
+# SWAPP (eco-swapp-minsk) — FastAPI+TG webhook за контейнером swapp-app:8000.
+# Запуск: docker compose --env-file .env -f compose.production.yml -f compose.botops.yml up -d --build db app
+swapp.apps.botops.ru {
+	reverse_proxy swapp-app:8000
+	encode zstd gzip
+}

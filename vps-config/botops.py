@@ -141,6 +141,17 @@ files.put(
     group=DEVUSER,
 )
 
+# SWAPP: apps-домен не botops-static артефакт — свой блок обходит on-demand
+# (router проверял бы live-symlink и вернул 403), обычный ACME при reload.
+
+files.put(
+    name="override caddy: swapp.apps.botops.ru",
+    src="files/swapp.caddy",
+    dest="/srv/botops/staging-overrides/swapp.caddy",
+    user=DEVUSER,
+    group=DEVUSER,
+)
+
 server.shell(
     name="caddy validate + reload",
     commands=[
