@@ -15,7 +15,8 @@ pyinfra --version
 
 - `inventory.py` — текущий сервер. Имя `vps` резолвится через `~/.ssh/config`
   (Host vps → tailscale-адрес 100.x.y.z).
-- `deploy.py` — обычный деплой: Docker, compose-плагин, devuser в группе docker.
+- `deploy.py` — обычный деплой: Docker из официального репозитория docker.com
+  (в Debian нет пакета `docker-compose-v2` — это имя Ubuntu), devuser в группе docker.
 - `bootstrap.py` + `bootstrap_inv.py` — фаза 1 для НОВОГО голого сервера
   (создать devuser, положить ключ; под root с `--ssh-password-prompt`).
 - `files/` — сюда кладёшь свой `id_ed25519.pub` для бутстрапа.
