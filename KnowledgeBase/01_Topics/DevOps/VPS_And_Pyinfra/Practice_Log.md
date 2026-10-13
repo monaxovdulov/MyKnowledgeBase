@@ -112,4 +112,6 @@ passwd devuser                                        # задаём devuser н�
 
 - **botops.py прогоны → инфра поднята.** 3 прогона: клоны прошли со 2-го (pubkey добавлен в GitHub), vibe-router ops попали в план только когда guard увидел клон. **Затык:** роутер ушёл в restart-луп — `ensureLayout()` делает `fs.mkdir` по data-корню, а mount `:ro` → EROFS. **Фикс:** `ROUTER_ENSURE_LAYOUT=0` в .env (каталоги создаёт botops.py, роутеру хватает чтения). Урок: ro-mount + «создай если нет» на старте — несовместимы; проверка `docker logs` при любом Restarting.
 
+- **Модель «агент на сервере».** Roman хочет агента локально на giorno → два слоя: Devin CLI на сервере (`curl install.sh | bash` → `~/.local/bin/devin`, логин — браузерная ссылка/токен; headless-флоу) + мой SSH через tailnet (auth key). Установки агентов вынесены в модуль `vps-config/agents.py` — туда же лягут hermes-профили. Handoff-док: [[Server_Agent_Handoff]].
+
 #vps #debian
