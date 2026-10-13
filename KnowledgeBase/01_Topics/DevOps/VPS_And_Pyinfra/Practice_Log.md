@@ -22,11 +22,13 @@
 - ✅ fail2ban: `jail.local` (`[sshd] enabled = true`) + `enable --now` — запущен
 - ✅ **Tailscale готов**: сервер `giorno-1` в tailnet, клиент на Windows, exit node проверен; `ssh devuser@100.x` работает, `HostName` в `~/.ssh/config` → 100.x
 - ✅ **ufw финал**: `Anywhere on tailscale0 ALLOW` — единственное правило входа; публичный 22 закрыт (`delete allow OpenSSH`); `deny incoming / allow outgoing`. Снаружи сервер «пустой»
-- ⬜ Docker — ставится **кодом** через `vps-config/deploy.py` (решение Roman'а: pyinfra должен ставить сам)
-- ⬜ pyinfra на Windows — шаг 4 не начат
-- ✅ репозиторий `vps-config/` создан в корне MyKnowledgeBase: `inventory.py`, `deploy.py`, `bootstrap.py` + `bootstrap_inv.py` (по [[08_Bootstrap_Second_Server]]), `files/` для pubkey, README
+- ✅ Docker установлен **кодом**: `pyinfra inventory.py deploy.py` — docker-ce + compose plugin из официального репо docker.com; `docker ps` без sudo работает
+- ✅ pyinfra на Windows работает: `uv tool install pyinfra`, прогон идёт через tailnet (`vps` алиас)
+- ✅ репозиторий `vps-config/` создан в корне MyKnowledgeBase: `inventory.py`, `deploy.py`, `bootstrap.py` + `bootstrap_inv.py` (по [[08_Bootstrap_Second_Server]]), `files/` для pubkey и daemon.json, README
+- ✅ `daemon.json` добавлен в deploy.py (`local` логи + live-restore) — применить `sudo systemctl restart docker` при следующем заходе
+- ⬜ дальше по треку: шаг 5–6 (инвентарь уже есть; перенос харденинга руками → кодом), docker context на Windows
 
-**Следующий шаг:** на Windows `winget install astral-sh.uv` → `uv tool install pyinfra` → в `vps-config/`: `pyinfra inventory.py exec -- hostname` → `pyinfra inventory.py deploy.py --dry` → `pyinfra inventory.py deploy.py` (Docker кодом) → перелогин + `docker ps`.
+**Следующий шаг:** `sudo systemctl restart docker` (daemon.json) → `docker context create vps --docker "host=ssh://vps"` на Windows → шаг 6 [[06_Hardening_As_Code]]: перенести ufw/fail2ban/sshd-drop-in в deploy.py.
 
 ## 2026-10-09 — Шаг 1: sudo и пользователь devuser
 
@@ -92,5 +94,7 @@ passwd devuser                                        # задаём devuser н�
 - **ufw перекрыт на tailnet-only.** `sudo ufw allow in on tailscale0` + `sudo ufw delete allow OpenSSH` → статус: единственное правило `Anywhere on tailscale0 ALLOW`, публичного 22 нет. Урок: `ufw` без sudo → `command not found` (`/usr/sbin` не в PATH обычного юзера — все админ-команды через `sudo`).
 - **Решение: Docker ставит pyinfra, а не руки.** Roman справедливо заметил: «разве pyinfra Docker сама не поставит?» — да, и это правильный способ: первый настоящий `deploy.py`. Под это создан проект `vps-config/` в корне репо: `inventory.py` (хост `vps` через ssh-конфиг/tailnet), `deploy.py` (`apt.packages` docker.io+docker-compose-v2 + `server.user` groups=docker с `append=True`), бутстрап-файлы для будущих серверов по [[08_Bootstrap_Second_Server]].
 - **Первый прогон pyinfra.** `pyinfra inventory.py exec -- hostname` → `giorno.ptr.network` через tailnet — связь есть. `--dry` показал 2 изменения, pyinfra интерактивно спросил sudo-пароль. Реальный прогон упал на `E: Unable to locate package docker-compose-v2`. **Затык:** `docker-compose-v2` — имя пакета Ubuntu; в Debian его нет вообще (madison пуст по всем suite), а `docker.io` в bookworm — версия 2023 г. **Решение:** официальный репозиторий docker.com — `files.download` GPG в `/etc/apt/keyrings/docker.asc` + `apt.repo` в `sources.list.d/docker.list` + пакеты `docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin`. Тот же drop-in паттерн, что у sshd. Сервер не задело — apt-установка атомарна.
+- **Успешный деплой Docker кодом.** Второй прогон: 4 success + 1 «No changes» (каталог keyrings уже существовал — идемпотентность вживую). Перелогин → `docker ps` без sudo работает. Docker engine + compose v2 из официального репо.
+- **Ресёрч Docker-практик → заметка [[Docker_Best_Practices]].** Ключевое: (1) `docker -p` обходит ufw через DNAT/FORWARD — «пустой» файрвол не защищает опубликованные порты, биндим к конкретным IP (`127.0.0.1`, tailnet `100.x`, публично только caddy); (2) `daemon.json`: `local` log-driver (json-file не ротирует — диск 60 GB) + `live-restore`; (3) `docker context create vps --docker "host=ssh://vps"` — управление с Windows без входа по SSH; (4) compose-гигиена (.env, healthcheck, restart, пины версий); (5) `docker system df/prune` для диска. В `deploy.py` добавлен `files.put` daemon.json.
 
 #vps #debian

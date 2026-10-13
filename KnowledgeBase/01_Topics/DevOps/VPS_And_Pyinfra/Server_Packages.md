@@ -25,13 +25,20 @@ apt update && apt upgrade -y
 
 ## Docker (нужен для SWAPP и любых compose-деплоев)
 
+Ставим кодом — `vps-config/deploy.py`, из **официального репозитория** docker.com
+(`docker-ce`, `docker-ce-cli`, `containerd.io`, `docker-buildx-plugin`,
+`docker-compose-plugin`). Инструкция: https://docs.docker.com/engine/install/debian/
+
+Почему не пакеты Debian: `docker-compose-v2` — имя пакета Ubuntu, в Debian его
+нет вообще (проверено по madison), а `docker.io` в bookworm застрял на версии
+2023 года.
+
 ```bash
-apt install -y docker.io docker-compose-v2
 usermod -aG docker devuser   # devuser и агент работают с docker без sudo
 # потом relogin — группа применяется при новом входе
 ```
 
-`docker.io` + `docker-compose-v2` — пакеты из репозитория Debian, самый простой путь для личного VPS. Альтернатива — официальный репозиторий Docker (новее версия): https://docs.docker.com/engine/install/debian/
+Дальнейшая настройка демона и гигиена: [[Docker_Best_Practices]].
 
 ## Что ставить не нужно
 

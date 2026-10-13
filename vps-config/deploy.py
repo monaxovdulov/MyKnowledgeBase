@@ -45,6 +45,16 @@ apt.packages(
     _sudo=True,
 )
 
+files.put(
+    name="daemon.json: локальный драйвер логов + live-restore",
+    src="files/daemon.json",
+    dest="/etc/docker/daemon.json",
+    mode="644",
+    _sudo=True,
+)
+# применяется после `sudo systemctl restart docker` (или перезагрузки);
+# ротация логов действует только на контейнеры, созданные после рестарта.
+
 server.user(
     name="devuser в группе docker (docker без sudo)",
     user="devuser",

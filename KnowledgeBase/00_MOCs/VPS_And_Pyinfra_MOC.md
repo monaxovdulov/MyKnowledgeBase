@@ -20,7 +20,7 @@
 
 Журнал фактического прохождения на живом сервере: [[Practice_Log]]
 
-Дополнительные заметки: [[Users_Model]] — зачем приложениям отдельные сервисные пользователи · [[Server_Packages]] — базовый набор пакетов (включая Docker для SWAPP) · [[SSH_Key_Portability]] — SSH-доступ, переносимый между машинами
+Дополнительные заметки: [[Users_Model]] — зачем приложениям отдельные сервисные пользователи · [[Server_Packages]] — базовый набор пакетов (включая Docker для SWAPP) · [[Docker_Best_Practices]] — daemon.json, готча docker-vs-ufw, docker context, гигиена compose и диска · [[SSH_Key_Portability]] — SSH-доступ, переносимый между машинами
 
 ## Принципы трека
 
