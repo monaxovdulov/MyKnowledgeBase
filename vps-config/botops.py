@@ -1,8 +1,8 @@
 """Поднять botops-прослойку: /srv/botops Caddy + vibe-router + сеть + линки скриптов.
 
-Пререквизиты (руками на сервере, см. KnowledgeBase Botops_Restore.md):
-  - github-ключ у devuser (Deploy key / SSH key на github.com)
-  - клоны: ~/.agents/skills/botops-deploy, ~/student-share-codex, ~/ops-homebase
+Пререквизит — одно ручное действие: после первого прогона добавить
+выведенный pubkey в GitHub (Settings → SSH keys или Deploy keys репо),
+затем перезапустить — клоны и контейнеры докатятся повторным запуском.
 
 Запуск с винды: pyinfra inventory.py botops.py
 """
@@ -17,9 +17,50 @@ server.shell(
     name="Каталоги codex-vibe-data и служебные",
     commands=[
         f"mkdir -p {HOME}/codex-vibe-data/{{artifacts,previews,live,state,workspaces,builds,logs,tmp}} "
-        f"{HOME}/bin {HOME}/.local/state/botops-deploy {HOME}/deploy"
+        f"{HOME}/bin {HOME}/.local/state/botops-deploy {HOME}/deploy {HOME}/.agents/skills"
     ],
 )
+
+server.shell(
+    name="github-ключ devuser (id_ed25519_github, без passphrase — машинный)",
+    commands=[
+        f"mkdir -p {HOME}/.ssh && "
+        f"test -f {HOME}/.ssh/id_ed25519_github || "
+        f"ssh-keygen -t ed25519 -N '' -C giorno-devuser -f {HOME}/.ssh/id_ed25519_github"
+    ],
+)
+
+server.shell(
+    name="Host github.com + known_hosts в ~/.ssh/config",
+    commands=[
+        f"touch {HOME}/.ssh/config {HOME}/.ssh/known_hosts && "
+        f"grep -q id_ed25519_github {HOME}/.ssh/config || "
+        f"printf 'Host github.com\\n    IdentityFile ~/.ssh/id_ed25519_github\\n' >> {HOME}/.ssh/config && "
+        f"grep -q '^github.com' {HOME}/.ssh/known_hosts || "
+        f"ssh-keyscan -t ed25519 github.com >> {HOME}/.ssh/known_hosts 2>/dev/null"
+    ],
+)
+
+server.shell(
+    name="pubkey для GitHub — добавить в Settings → SSH keys",
+    commands=[
+        f"echo '=== добавь эту строку в GitHub: Settings -> SSH and GPG keys -> New SSH key ===' "
+        f"&& cat {HOME}/.ssh/id_ed25519_github.pub"
+    ],
+)
+
+for _repo, _dest in (
+    ("botops-deploy", f"{HOME}/.agents/skills/botops-deploy"),
+    ("student-share-codex", f"{HOME}/student-share-codex"),
+    ("ops-homebase", f"{HOME}/ops-homebase"),
+):
+    server.shell(
+        name=f"git clone {_repo}",
+        commands=[
+            f"test -d {_dest} || git clone git@github.com:monaxovdulov/{_repo} {_dest} "
+            f"|| echo 'SKIP: pubkey ещё не добавлен в GitHub — добавь и перезапусти botops.py'"
+        ],
+    )
 
 server.shell(
     name="/srv/botops (+ staging-overrides, владелец devuser)",

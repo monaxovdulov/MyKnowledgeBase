@@ -9,38 +9,27 @@ Runbook поднятия общей прослойки деплоя после �
 - Docker-ce + compose, devuser, dev-цепочка (git/uv/pnpm) — через `vps-config/deploy.py`
 - DNS `*.apps.botops.ru` → `46.226.165.215` (wildcard жив)
 
-## Шаг 1 — GitHub-доступ с сервера (руками)
-
-`student-share-codex` и `ops-homebase` — приватные. Машинный ключ:
-
-```bash
-ssh vps
-ssh-keygen -t ed25519 -C "giorno-devuser" -f ~/.ssh/id_ed25519_github
-cat ~/.ssh/id_ed25519_github.pub   # → GitHub: repo → Settings → Deploy keys (read-only)
-# в ~/.ssh/config:
-# Host github.com
-#     IdentityFile ~/.ssh/id_ed25519_github
-ssh -T git@github.com              # → Hi monaxovdulov
-```
-
-## Шаг 2 — клоны (руками, на сервере)
-
-```bash
-git clone https://github.com/monaxovdulov/botops-deploy ~/.agents/skills/botops-deploy
-git clone git@github.com:monaxovdulov/student-share-codex ~/student-share-codex
-git clone git@github.com:monaxovdulov/ops-homebase ~/ops-homebase
-```
-
-## Шаг 3 — кодом (с винды)
+## Шаг 1 — прогон с винды
 
 ```powershell
 cd C:\Users\monax\Desktop\MyKnowledgeBase\vps-config
 git pull
-pyinfra inventory.py botops.py --dry
 pyinfra inventory.py botops.py
 ```
 
-`botops.py` делает: каталоги `~/codex-vibe-data/{artifacts,previews,live,state,workspaces,builds,logs,tmp}` + `~/bin` + `~/.local/state/botops-deploy` + `~/deploy` → `/srv/botops` (владелец devuser) → кладёт `compose.yml` + `Caddyfile` → сеть `granit-staging_default` → symlinks `~/bin/botops-*` → `.env` роутера → `docker compose up` роутера и общего Caddy.
+`botops.py` делает за прогон: каталоги `~/codex-vibe-data/{...}` + `~/bin` + `~/.local/state/botops-deploy` + `~/deploy` + `~/.agents/skills` → машинный ключ `~/.ssh/id_ed25519_github` (без passphrase) + блок `Host github.com` в `~/.ssh/config` + `known_hosts` → **печатает pubkey** → клоны `botops-deploy` / `student-share-codex` / `ops-homebase` (guarded: уже есть → skip; github ещё не принимает ключ → SKIP с подсказкой) → `/srv/botops` + `compose.yml` + `Caddyfile` → сеть `granit-staging_default` → symlinks `~/bin/botops-*` → `.env` роутера → `docker compose up` роутера и общего Caddy.
+
+## Шаг 2 — единственное ручное действие
+
+В выводе прогона напечатан pubkey — добавить его в GitHub (github.com → Settings → SSH and GPG keys → New SSH key; Deploy keys тоже годятся, но они per-repo — ключ придётся добавлять в каждый репозиторий отдельно, поэтому удобнее ключ уровня аккаунта).
+
+## Шаг 3 — повторный прогон
+
+```powershell
+pyinfra inventory.py botops.py
+```
+
+Клоны докатятся, роутер поднимется (guard видит `deploy/docker-compose.yml` после клона), контейнеры up.
 
 ### Ключевые файлы (лежат в `vps-config/files/`)
 
