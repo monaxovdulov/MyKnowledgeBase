@@ -20,7 +20,8 @@
 - ✅ `apt update && apt upgrade -y` + `apt install ufw fail2ban unattended-upgrades` — выполнены
 - ✅ ufw включён: `allow OpenSSH` → `enable` → «Firewall is active and enabled on system startup», сессия не порвалась
 - ✅ fail2ban: `jail.local` (`[sshd] enabled = true`) + `enable --now` — запущен
-- ✅ **Tailscale готов**: сервер `giorno-1` в tailnet, клиент на Windows, exit node проверен; `ssh devuser@100.x` работает, `HostName` в `~/.ssh/config` → 100.x; публичный 22 закрыт (`ufw allow in on tailscale0` + `delete allow OpenSSH`) — SSH только внутри tailnet
+- ✅ **Tailscale готов**: сервер `giorno-1` в tailnet, клиент на Windows, exit node проверен; `ssh devuser@100.x` работает, `HostName` в `~/.ssh/config` → 100.x
+- ✅ **ufw финал**: `Anywhere on tailscale0 ALLOW` — единственное правило входа; публичный 22 закрыт (`delete allow OpenSSH`); `deny incoming / allow outgoing`. Снаружи сервер «пустой»
 - ⬜ Docker (`docker.io`, `docker-compose-v2`, `usermod -aG docker devuser`) — не ставили
 - ⬜ pyinfra на Windows — шаг 4 не начат
 
@@ -87,5 +88,6 @@ passwd devuser                                        # задаём devuser н�
 - **Вопрос: забанит ли fail2ban за частые входы через VPN?** Нет — банятся провалы (дефолт 5 неудач за 10 мин → бан ~10 мин), успешные входы по ключу не считаются. Риск с VPN — общий выходной IP: чужие брутфорсы с того же IP могут достаться тебе. Выходы из бана: подождать bantime / другой IP (выход VPN, хотспот) / веб-консоль aeza → `sudo fail2ban-client unban <IP>` (или `--all`). `ignoreip` белый список есть, но с динамическим IP бесполезен.
 - **План: Tailscale** — Roman ставит tailnet для входа с Windows. Это апгрейд всей схемы: после проверки `ssh devuser@100.x` публичный порт 22 закрываем (`ufw allow in on tailscale0` + `ufw delete allow OpenSSH`) — SSH будет существовать только внутри tailnet; fail2ban/брутфорс из интернета вообще исчезают как класс. Правило то же, что с паролями: новый путь проверен → старый закрываем.
 - **Tailscale поднят + exit node.** `sysctl.d/99-tailscale.conf` (ip_forward v4+v6), `tailscale set --advertise-exit-node`, аппрув в админ-консоли; на Windows выбран exit node — `ifconfig.me` показывает IP aeza. **Затык:** включение exit node во время SSH-сессии по публичному IP → `Connection reset` (трафик сессии ушёл в собственный туннель). Урок: админский вход переводим на `100.x` адрес — тогда SSH не зависит ни от публички, ни от exit node.
+- **ufw перекрыт на tailnet-only.** `sudo ufw allow in on tailscale0` + `sudo ufw delete allow OpenSSH` → статус: единственное правило `Anywhere on tailscale0 ALLOW`, публичного 22 нет. Урок: `ufw` без sudo → `command not found` (`/usr/sbin` не в PATH обычного юзера — все админ-команды через `sudo`).
 
 #vps #debian
