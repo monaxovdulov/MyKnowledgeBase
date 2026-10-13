@@ -21,9 +21,9 @@
 - ✅ ufw включён: `allow OpenSSH` → `enable` → «Firewall is active and enabled on system startup», сессия не порвалась
 - ✅ fail2ban: `jail.local` (`[sshd] enabled = true`) + `enable --now` — запущен
 - ⬜ Docker (`docker.io`, `docker-compose-v2`, `usermod -aG docker devuser`) — не ставили
-- ⏳ **Tailscale**: сервер установлен и в tailnet как `giorno-1` (виден в админ-консоли). Осталось: клиент на Windows → `ssh devuser@100.x` → `ufw allow in on tailscale0` + `delete allow OpenSSH` — SSH закрываем из публички, только tailnet. Опционально: exit-node (sysctl forwarding + `tailscale set --advertise-exit-node` + аппрув в консоли)
+- ⏳ **Tailscale**: сервер в tailnet как `giorno-1`; клиент на Windows подключён; **exit node настроен и проверен** (sysctl forwarding + `tailscale set --advertise-exit-node` + аппрув в консоли — трафик ПК идёт через VPS). Затык: SSH-сессия упала (`Connection reset`) при включении exit node — вход шёл через публичный IP и переехал в собственный туннель. Решение: `ssh devuser@100.x` через tailnet-адрес → потом `ufw allow in on tailscale0` + `delete allow OpenSSH` — SSH закрываем из публички
 
-**Следующий шаг:** Tailscale-клиент на Windows → `ssh devuser@100.x` → закрыть публичный 22 → Docker → шаг 4 [[04_Install_Pyinfra_On_Windows]] (pyinfra на Windows).
+**Следующий шаг:** `tailscale ip -4` на сервере → `ssh devuser@100.x` проверка → `HostName 100.x` в `~/.ssh/config` → `ufw allow in on tailscale0` + `delete allow OpenSSH` → Docker → шаг 4 [[04_Install_Pyinfra_On_Windows]] (pyinfra на Windows).
 
 ## 2026-10-09 — Шаг 1: sudo и пользователь devuser
 
@@ -85,5 +85,6 @@ passwd devuser                                        # задаём devuser н�
 - Защита включена: `apt upgrade -y` + `ufw allow OpenSSH && ufw enable` («Firewall is active and enabled on system startup») + `jail.local` (`[sshd] enabled = true`) + `systemctl enable --now fail2ban`. Сообщение «Command may disrupt existing ssh connections» — штатное предупреждение ufw, `y` + OpenSSH уже разрешён → сессия жива.
 - **Вопрос: забанит ли fail2ban за частые входы через VPN?** Нет — банятся провалы (дефолт 5 неудач за 10 мин → бан ~10 мин), успешные входы по ключу не считаются. Риск с VPN — общий выходной IP: чужие брутфорсы с того же IP могут достаться тебе. Выходы из бана: подождать bantime / другой IP (выход VPN, хотспот) / веб-консоль aeza → `sudo fail2ban-client unban <IP>` (или `--all`). `ignoreip` белый список есть, но с динамическим IP бесполезен.
 - **План: Tailscale** — Roman ставит tailnet для входа с Windows. Это апгрейд всей схемы: после проверки `ssh devuser@100.x` публичный порт 22 закрываем (`ufw allow in on tailscale0` + `ufw delete allow OpenSSH`) — SSH будет существовать только внутри tailnet; fail2ban/брутфорс из интернета вообще исчезают как класс. Правило то же, что с паролями: новый путь проверен → старый закрываем.
+- **Tailscale поднят + exit node.** `sysctl.d/99-tailscale.conf` (ip_forward v4+v6), `tailscale set --advertise-exit-node`, аппрув в админ-консоли; на Windows выбран exit node — `ifconfig.me` показывает IP aeza. **Затык:** включение exit node во время SSH-сессии по публичному IP → `Connection reset` (трафик сессии ушёл в собственный туннель). Урок: админский вход переводим на `100.x` адрес — тогда SSH не зависит ни от публички, ни от exit node.
 
 #vps #debian
