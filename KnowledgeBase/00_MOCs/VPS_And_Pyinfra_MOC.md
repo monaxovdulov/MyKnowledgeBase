@@ -20,7 +20,7 @@
 
 Журнал фактического прохождения на живом сервере: [[Practice_Log]]
 
-Дополнительные заметки: [[Users_Model]] — зачем приложениям отдельные сервисные пользователи · [[Server_Packages]] — базовый набор пакетов (включая Docker для SWAPP) · [[Docker_Best_Practices]] — daemon.json, готча docker-vs-ufw, docker context, гигиена compose и диска · [[SSH_Key_Portability]] — SSH-доступ, переносимый между машинами · [[Deploy_Plan_Giorno]] — план трёх проектов: лендинг, SWAPP, Hermes multi-agent · [[Botops_Restore]] — runbook поднятия botops-прослойки (общий Caddy + vibe-router) кодом
+Дополнительные заметки: [[Users_Model]] — зачем приложениям отдельные сервисные пользователи · [[Server_Packages]] — базовый набор пакетов (включая Docker для SWAPP) · [[Docker_Best_Practices]] — daemon.json, готча docker-vs-ufw, docker context, гигиена compose и диска · [[SSH_Key_Portability]] — SSH-доступ, переносимый между машинами · [[Deploy_Plan_Giorno]] — план трёх проектов: лендинг, SWAPP, Hermes multi-agent · [[Botops_Restore]] — runbook поднятия botops-прослойки (общий Caddy + vibe-router) кодом · [[Server_Agent_Handoff]] — состояние и очередь для агента на сервере
 
 ## Принципы трека
 
