@@ -2,62 +2,64 @@
 
 > Карта трека: [[VPS_And_Pyinfra_MOC]] · Связано: [[Deploy_Plan_Giorno]]
 
-Runbook поднятия общей прослойки деплоя после вайпа. Источник истины — README репо `botops-deploy` («Перенос на другой сервер»); сервер тот же (IP совпадает), поэтому просто повторяем по карте.
+Runbook поднятия общей прослойки деплоя после вайпа. Источник истины — README репо `botops-deploy` («Перенос на другой сервер»); сервер тот же (IP совпадает). Вся серверная механика живёт кодом в `vps-config/botops.py` — руками только клоны и github-ключ.
 
 ## Что уже есть (не восстанавливаем)
 
 - Docker-ce + compose, devuser, dev-цепочка (git/uv/pnpm) — через `vps-config/deploy.py`
 - DNS `*.apps.botops.ru` → `46.226.165.215` (wildcard жив)
 
-## Зависимость: GitHub-доступ с сервера
+## Шаг 1 — GitHub-доступ с сервера (руками)
 
-`student-share-codex` и `ops-homebase` — приватные (анонимно 404, у Devin нет доступа). Для клонов с сервера нужен ключ/PAT:
+`student-share-codex` и `ops-homebase` — приватные. Машинный ключ:
 
 ```bash
-# на сервере, один раз — машинный ключ для github:
+ssh vps
 ssh-keygen -t ed25519 -C "giorno-devuser" -f ~/.ssh/id_ed25519_github
-cat ~/.ssh/id_ed25519_github.pub   # → добавить в GitHub: repo → Settings → Deploy keys (или в аккаунт)
-# ~/.ssh/config: Host github.com → IdentityFile ~/.ssh/id_ed25519_github
+cat ~/.ssh/id_ed25519_github.pub   # → GitHub: repo → Settings → Deploy keys (read-only)
+# в ~/.ssh/config:
+# Host github.com
+#     IdentityFile ~/.ssh/id_ed25519_github
+ssh -T git@github.com              # → Hi monaxovdulov
 ```
 
-Проверка: `ssh -T git@github.com` → «Hi monaxovdulov».
-
-## Шаги восстановления
+## Шаг 2 — клоны (руками, на сервере)
 
 ```bash
-# 1. Код: скилл + router + реестр
-mkdir -p ~/.agents/skills ~/deploy ~/bin ~/.local/state/botops-deploy ~/codex-vibe-data/{artifacts,previews,live,state,workspaces,builds,logs,tmp}
 git clone https://github.com/monaxovdulov/botops-deploy ~/.agents/skills/botops-deploy
-git clone git@github.com:monaxovdulov/student-share-codex ~/student-share-codex   # нужен ключ выше
+git clone git@github.com:monaxovdulov/student-share-codex ~/student-share-codex
 git clone git@github.com:monaxovdulov/ops-homebase ~/ops-homebase
-
-# 2. Скрипты в PATH
-mkdir -p ~/bin
-for f in botops-static botops-compose botops-ci-gate botops-ci-setup; do
-  ln -sfn ~/.agents/skills/botops-deploy/scripts/$f ~/bin/$f
-done
-# убедиться, что ~/bin в PATH (echo $PATH; при надобности дописать в ~/.profile)
-
-# 3. Докер-сеть для приложений
-docker network create granit-staging_default
-
-# 4. Роутер статики (из student-share-codex/deploy/)
-docker compose -f ~/student-share-codex/deploy/docker-compose.yml up -d
-# env в нём: CODEX_VIBE_ROOT=/home/devuser/codex-vibe-data, PUBLIC_BASE_DOMAIN=botops.ru,
-# ROUTER_PORT, CADDY_DOCKER_NETWORK=granit-staging_default
-
-# 5. Общий Caddy /srv/botops
-sudo mkdir -p /srv/botops/staging-overrides && sudo chown -R devuser:devuser /srv/botops
-# compose.yml (granit-staging stack: caddy:2-alpine, 80/443) и Caddyfile —
-# референс: student-share-codex/deploy/Caddyfile + секция «Перенос» в README botops-deploy
-docker compose -f /srv/botops/compose.yml up -d
 ```
+
+## Шаг 3 — кодом (с винды)
+
+```powershell
+cd C:\Users\monax\Desktop\MyKnowledgeBase\vps-config
+git pull
+pyinfra inventory.py botops.py --dry
+pyinfra inventory.py botops.py
+```
+
+`botops.py` делает: каталоги `~/codex-vibe-data/{artifacts,previews,live,state,workspaces,builds,logs,tmp}` + `~/bin` + `~/.local/state/botops-deploy` + `~/deploy` → `/srv/botops` (владелец devuser) → кладёт `compose.yml` + `Caddyfile` → сеть `granit-staging_default` → symlinks `~/bin/botops-*` → `.env` роутера → `docker compose up` роутера и общего Caddy.
+
+### Ключевые файлы (лежат в `vps-config/files/`)
+
+**`/srv/botops/compose.yml`** (`files/botops-compose.yml`) — `caddy:2-alpine`, `container_name: granit-staging-caddy-1`, порты 80/443 (+udp для HTTP/3), монтирует `Caddyfile` + `staging-overrides → /srv/overrides`, volumes `caddy_data`/`caddy_config`, external-сеть `granit-staging_default`.
+
+**`/srv/botops/Caddyfile`** (`files/botops-Caddyfile`) = референс из `student-share-codex/deploy/Caddyfile` + строка `import /srv/overrides/*.caddy` в конце (именно она подключает маршруты приложений; override с точным доменом `<app>.apps.botops.ru` автоматически перекрывает wildcard-блок).
+
+**`~/student-share-codex/deploy/.env`** (`files/vibe-router.env`) — `CODEX_VIBE_ROOT` и `CODEX_VIBE_HOST_ROOT` = `/home/devuser/codex-vibe-data` (одинаковый путь снаружи и внутри → относительные symlink'и артефактов работают), `ROUTER_PORT=8090`, `CADDY_DOCKER_NETWORK=granit-staging_default`.
+
+### Почему 80/443 работают при «пустом» ufw
+
+Публикация портов идёт через DNAT/FORWARD мимо INPUT-цепочки ufw — та же «дыра», что в [[Docker_Best_Practices]], только здесь она осознанная фича: общий Caddy — единственный легальный публичный вход. Проверить с винды: `curl http://46.226.165.215` → ответ Caddy (не таймаут).
 
 ## Проверка
 
 - `docker ps` → `granit-staging-caddy-1`, `deploy-vibe-router-1` Up
-- `curl -s http://localhost/internal/tls-check` внутри сети
-- `botops-static status <slug>` отвечает
+- `docker exec granit-staging-caddy-1 wget -qO- "http://vibe-router:8090/internal/tls-check?domain=example.apps.botops.ru"` → ответ роутера (до деплоев — deny, это норма)
+- `docker exec granit-staging-caddy-1 caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile`
+- `curl http://46.226.165.215` с винды → ответ Caddy, не таймаут
 
 ## Дальше
 

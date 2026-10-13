@@ -1,0 +1,25 @@
+services:
+  caddy:
+    image: caddy:2-alpine
+    container_name: granit-staging-caddy-1
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"   # HTTP/3
+    volumes:
+      - /srv/botops/Caddyfile:/etc/caddy/Caddyfile:ro
+      - /srv/botops/staging-overrides:/srv/overrides:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - granit-staging
+
+networks:
+  granit-staging:
+    external: true
+    name: granit-staging_default
+
+volumes:
+  caddy_data:
+  caddy_config:
