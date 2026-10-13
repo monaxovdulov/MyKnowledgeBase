@@ -22,10 +22,11 @@
 - ✅ fail2ban: `jail.local` (`[sshd] enabled = true`) + `enable --now` — запущен
 - ✅ **Tailscale готов**: сервер `giorno-1` в tailnet, клиент на Windows, exit node проверен; `ssh devuser@100.x` работает, `HostName` в `~/.ssh/config` → 100.x
 - ✅ **ufw финал**: `Anywhere on tailscale0 ALLOW` — единственное правило входа; публичный 22 закрыт (`delete allow OpenSSH`); `deny incoming / allow outgoing`. Снаружи сервер «пустой»
-- ⬜ Docker (`docker.io`, `docker-compose-v2`, `usermod -aG docker devuser`) — не ставили
+- ⬜ Docker — ставится **кодом** через `vps-config/deploy.py` (решение Roman'а: pyinfra должен ставить сам)
 - ⬜ pyinfra на Windows — шаг 4 не начат
+- ✅ репозиторий `vps-config/` создан в корне MyKnowledgeBase: `inventory.py`, `deploy.py`, `bootstrap.py` + `bootstrap_inv.py` (по [[08_Bootstrap_Second_Server]]), `files/` для pubkey, README
 
-**Следующий шаг:** Docker на сервере → шаг 4 [[04_Install_Pyinfra_On_Windows]]: `uv tool install pyinfra` → `pyinfra vps exec -- hostname` / `pyinfra vps fact server.Os` → дальше шаг 5 (inventory + первый deploy).
+**Следующий шаг:** на Windows `winget install astral-sh.uv` → `uv tool install pyinfra` → в `vps-config/`: `pyinfra inventory.py exec -- hostname` → `pyinfra inventory.py deploy.py --dry` → `pyinfra inventory.py deploy.py` (Docker кодом) → перелогин + `docker ps`.
 
 ## 2026-10-09 — Шаг 1: sudo и пользователь devuser
 
@@ -89,5 +90,6 @@ passwd devuser                                        # задаём devuser н�
 - **План: Tailscale** — Roman ставит tailnet для входа с Windows. Это апгрейд всей схемы: после проверки `ssh devuser@100.x` публичный порт 22 закрываем (`ufw allow in on tailscale0` + `ufw delete allow OpenSSH`) — SSH будет существовать только внутри tailnet; fail2ban/брутфорс из интернета вообще исчезают как класс. Правило то же, что с паролями: новый путь проверен → старый закрываем.
 - **Tailscale поднят + exit node.** `sysctl.d/99-tailscale.conf` (ip_forward v4+v6), `tailscale set --advertise-exit-node`, аппрув в админ-консоли; на Windows выбран exit node — `ifconfig.me` показывает IP aeza. **Затык:** включение exit node во время SSH-сессии по публичному IP → `Connection reset` (трафик сессии ушёл в собственный туннель). Урок: админский вход переводим на `100.x` адрес — тогда SSH не зависит ни от публички, ни от exit node.
 - **ufw перекрыт на tailnet-only.** `sudo ufw allow in on tailscale0` + `sudo ufw delete allow OpenSSH` → статус: единственное правило `Anywhere on tailscale0 ALLOW`, публичного 22 нет. Урок: `ufw` без sudo → `command not found` (`/usr/sbin` не в PATH обычного юзера — все админ-команды через `sudo`).
+- **Решение: Docker ставит pyinfra, а не руки.** Roman справедливо заметил: «разве pyinfra Docker сама не поставит?» — да, и это правильный способ: первый настоящий `deploy.py`. Под это создан проект `vps-config/` в корне репо: `inventory.py` (хост `vps` через ssh-конфиг/tailnet), `deploy.py` (`apt.packages` docker.io+docker-compose-v2 + `server.user` groups=docker с `append=True`), бутстрап-файлы для будущих серверов по [[08_Bootstrap_Second_Server]].
 
 #vps #debian

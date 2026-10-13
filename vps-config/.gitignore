@@ -1,0 +1,4 @@
+__pycache__/
+.env
+*.key
+id_ed25519
