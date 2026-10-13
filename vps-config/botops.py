@@ -14,10 +14,14 @@ DEVUSER = "devuser"
 HOME = f"/home/{DEVUSER}"
 
 server.shell(
+    # NB: без {}-расширения — server.shell идёт через sh (dash), не bash
     name="Каталоги codex-vibe-data и служебные",
     commands=[
-        f"mkdir -p {HOME}/codex-vibe-data/{{artifacts,previews,live,state,workspaces,builds,logs,tmp}} "
-        f"{HOME}/bin {HOME}/.local/state/botops-deploy {HOME}/deploy {HOME}/.agents/skills"
+        "mkdir -p " + " ".join(
+            f"{HOME}/codex-vibe-data/{sub}"
+            for sub in ("artifacts", "previews", "live", "state", "workspaces", "builds", "logs", "tmp")
+        )
+        + f" && mkdir -p {HOME}/bin {HOME}/.local/state/botops-deploy {HOME}/deploy {HOME}/.agents/skills"
     ],
 )
 
