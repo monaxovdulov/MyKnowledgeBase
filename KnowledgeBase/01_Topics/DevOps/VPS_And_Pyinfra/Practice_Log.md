@@ -26,9 +26,12 @@
 - ✅ pyinfra на Windows работает: `uv tool install pyinfra`, прогон идёт через tailnet (`vps` алиас)
 - ✅ репозиторий `vps-config/` создан в корне MyKnowledgeBase: `inventory.py`, `deploy.py`, `bootstrap.py` + `bootstrap_inv.py` (по [[08_Bootstrap_Second_Server]]), `files/` для pubkey и daemon.json, README
 - ✅ `daemon.json` добавлен в deploy.py (`local` логи + live-restore) — применить `sudo systemctl restart docker` при следующем заходе
-- ⬜ дальше по треку: шаг 5–6 (инвентарь уже есть; перенос харденинга руками → кодом), docker context на Windows
+- ✅ `daemon.json` применён прогоном + `systemctl restart docker`; теперь все повторные прогоны — «No changes»
+- ✅ на Windows: DockerCLI + Compose plugin + lazydocker; `docker context vps` через ssh-алиас
+- ✅ план трёх проектов расписан: [[Deploy_Plan_Giorno]] (лендинг → SWAPP → Hermes multi-agent)
+- ⬜ дальше по треку: шаг 5–6 (инвентарь уже есть; перенос харденинга руками → кодом), деплои по плану
 
-**Следующий шаг:** `sudo systemctl restart docker` (daemon.json) → `docker context create vps --docker "host=ssh://vps"` на Windows → шаг 6 [[06_Hardening_As_Code]]: перенести ufw/fail2ban/sshd-drop-in в deploy.py.
+**Следующий шаг:** ждём вводные — домен+файлы лендинга / токены SWAPP / первые агенты Hermes; параллельно можно шаг 6 [[06_Hardening_As_Code]].
 
 ## 2026-10-09 — Шаг 1: sudo и пользователь devuser
 
