@@ -1,81 +1,71 @@
-# План: три проекта на сервер giorno
+# План: проекты на сервер giorno (через botops-платформу)
 
 > Карта трека: [[VPS_And_Pyinfra_MOC]] · Плановая заметка (что и как деплоим)
 
-База готова: tailnet-only SSH, docker-ce + compose, `vps-config/deploy.py`, docker context на Windows. Дальше — три реальных проекта по нарастающей сложности; каждый переиспользует паттерн предыдущего.
+База готова: tailnet-only SSH, docker-ce + compose, `vps-config/deploy.py` (docker + daemon.json + dev-цепочка git/uv/pnpm), docker context на Windows.
 
-## 0. Общая рамка для всех деплоев
+**Ключевое изменение плана:** у Roman уже есть готовая деплой-платформа — скилл [botops-deploy](https://github.com/monaxovdulov/botops-deploy), написанный под ЭТОТ сервер (IP совпадает). После вайпа её надо поднять заново — и все приложения идут через неё, а не через свои контейнеры-Caddy.
 
-- Порты публикуются осознанно: голый `80:80` — только для публичных сервисов (docker обходит ufw, см. [[Docker_Best_Practices]] п.2). Внутреннее — на `127.0.0.1` или `100.x`.
-- Одно приложение = один compose-проект (своя сеть и volumes).
-- Секреты — `.env` рядом с compose на сервере, не в git. Пароли генерим длинные случайные (Bitwarden).
-- Каждый проект — своя папка под `/home/devuser/`: `ai-projects/<имя>` (как было до вайпа).
-- `restart: unless-stopped`, healthcheck, `up -d --wait`, пины версий образов.
+## 0. Восстановление botops-инфраструктуры (первым шагом)
 
-## 1. Лендинг — самый простой деплой (учим паттерн «публикация + TLS»)
+Общий прокси-слой: один Caddy на 80/443 для всех проектов + on-demand TLS.
 
-**Схема:** один контейнер `caddy:2-alpine` + файлы сайта. Caddy сам выпускает и обновляет Let's Encrypt-сертификат по домену.
+- `/srv/botops/` — compose общего Caddy (`granit-staging-caddy-1`) + `Caddyfile` + `staging-overrides/`
+- Docker-сеть `granit-staging_default` (external) — точка подключения приложений
+- `deploy-vibe-router-1` — роутер статики + `/internal/tls-check` (репо `monaxovdulov/student-share-codex`, есть на GitHub)
+- `/home/devuser/codex-vibe-data/` — artifacts/previews/live symlink-модель статики
+- Скилл: clone `botops-deploy` → `~/.agents/skills/botops-deploy`, symlink'и `botops-*` в `~/bin/`
+- `ops-homebase` — реестр (clone с GitHub)
+- DNS `*.apps.botops.ru` → wildcard уже на сервере
+
+Всё это описано в `README.md` репо botops-deploy («Перенос на другой сервер») — сервер у нас тот же, восстановление по этой карте.
+
+## 1. Лендинг — `botops-static`
+
+Домен у Roman — `*.67.barabashka.pro` (не botops.ru → сначала проверить `getent hosts <домен>`; нужна A-запись на `46.226.165.215`).
+
+Два варианта:
+- `<slug>.apps.botops.ru` — штатный путь: `botops-static deploy <slug> "$DIST"` (артефакт → preview → smoke → атомарный live-symlink → внешний smoke; rollback одной командой).
+- Свой домен barabashka.pro — override-маршрут `/srv/botops/staging-overrides/landing.caddy` → `botops-static` всё равно хранит сборки, а Caddy смотрит на live-symlink либо прокси. Точную механику берём по `references/docker.md` при выполнении.
+
+Файлы сайта: собранный `DIST` с `index.html` в корне (без src/.git/node_modules) — откуда брать, уточняем при деплое.
+
+## 2. SWAPP — `botops-compose` (уже интегрирован!)
+
+В репо `eco-swapp-minsk` уже лежит `compose.botops.yml`: app подключается к `granit-staging_default` с алиасом `swapp-app`, свой caddy НЕ запускаем (80/443 держит общий Caddy). Запуск:
 
 ```
-~/ai-projects/landing/
-  compose.yml        # caddy + volume со статикой
-  Caddyfile          # {$DOMAIN} { root * /srv; file_server; encode zstd gzip }
-  site/              # index.html и ассеты (собранные файлы лендинга)
+docker compose --env-file .env -f compose.production.yml -f compose.botops.yml up -d --build db app
 ```
 
 **Шаги:**
-1. Выбрать домен и направить A-запись на `46.226.165.215`.
-2. Положить собранные файлы сайта в `site/` (git clone репо лендинга или scp/rsync собранного бандла).
-3. `docker compose up -d` → проверка `https://<домен>`.
-
-TLS выйдет автоматически при первом заходе. Если лендинг чисто статический — альтернатива вообще без контейнера (`caddy` как systemd-сервис), но compose-вариант единообразен со SWAPP.
-
-## 2. SWAPP — основной деплой (compose.production.yml)
-
-Факты из репозитория `eco-swapp-minsk`:
-
-- `compose.production.yml`: `caddy` (80/443+udp, авто-TLS, читает `DOMAIN`), `app` (сборка из `backend/Dockerfile`, FastAPI :8000, healthcheck `/health`), `db` (postgres:18.6, наружу не открыт, volume `swapp-db-data`).
-- Обязательные `.env`: `POSTGRES_PASSWORD`, `DOMAIN`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`, `TELEGRAM_GROUP_CHAT_ID`, `TELEGRAM_GROUP_MESSAGE_URL_PREFIX`, `TELEGRAM_MINI_APP_SHORT_NAME`, `TELEGRAM_WEBHOOK_SECRET`. Шаблон — `.env.example` в репо. Опционально Sentry-* и SUPPORT_*.
-- `deploy/Caddyfile`: `{$DOMAIN} { reverse_proxy app:8000 }` + JSON-ответ при 413.
-
-**Шаги:**
-1. На сервере: `git clone` репо в `~/ai-projects/eco-swapp-minsk` (нужен доступ к репо с сервера — deploy key или https).
-2. `.env` из `.env.example` + реальные значения (токены бота — из BotFather/чата).
-3. DNS `swapp.apps.botops.ru` уже указывает на сервер.
-4. `docker compose -f compose.production.yml up -d --wait` — первая сборка собирает app-образ локально.
-5. Проверка: `https://swapp.apps.botops.ru` открывает mini-app, `/health` отвечает, `docker compose ps` — все healthy.
-6. Деплой-поток дальше: `git pull` → `docker --context vps compose -f compose.production.yml up -d --build` с Windows.
-
-Важно: 80/443 станут публичными — это осознанно (первый легальный публичный вход, SWAPP и есть публичный сервис).
+1. Runtime clone: `git clone` → `/home/devuser/deploy/eco-swapp-minsk` (repo ≠ runtime, отдельно от dev-копий).
+2. `.env` — обязательные: `POSTGRES_PASSWORD`, `DOMAIN=swapp.apps.botops.ru`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`, `TELEGRAM_GROUP_CHAT_ID`, `TELEGRAM_GROUP_MESSAGE_URL_PREFIX`, `TELEGRAM_MINI_APP_SHORT_NAME`, `TELEGRAM_WEBHOOK_SECRET`.
+3. `.botops-deploy.env`: `BOTOPS_COMPOSE_PROJECT`, `BOTOPS_COMPOSE_ARGS`, `BOTOPS_SERVICES="app db"`, `BOTOPS_HEALTH_URL=http://swapp-app:8000/health`, `BOTOPS_PUBLIC_URL=https://swapp.apps.botops.ru/`, `BOTOPS_BRANCH`.
+4. `botops-compose deploy /home/devuser/deploy/eco-swapp-minsk --latest` (код 2 ожидаем — маршрута ещё нет).
+5. Маршрут: `/srv/botops/staging-overrides/swapp.caddy` → `caddy validate` → `caddy reload` → smoke `https://swapp.apps.botops.ru`.
+6. Строка в реестре ops-homebase.
 
 ## 3. Hermes — много агентов на одной установке
 
-Ресёрч по `NousResearch/hermes-agent` (официальные доки + PR):
+Первые агенты (от Roman): **семейный** (организация быта) → дальше **для студентов** (геймификация обучения, домашки, организационное).
 
-**Модель A — профиль на агента (дефолт, рекомендуемая).** `hermes agent add <имя>` создаёт профиль: своя память, скиллы, SOUL.md, модель, свои токены интерфейсов. Каждый профиль = свой процесс-шлюз как systemd user service (`hermes-gateway-<профиль>.service`), рестарт при падении. Это и есть «одна установка — много агентов под разные задачи и интерфейсы»: один Telegram-бот = один агент, другой = второй, Slack-воркспейс = третий. Жёсткая изоляция процессов. Док: `user-guide/multi-profile-gateways.md`.
+**Модель A — профиль на агента (рекомендуемая).** `hermes agent add <имя>` → свой профиль (память, скиллы, SOUL.md, модель, токены интерфейсов) + свой процесс-шлюз `hermes-gateway-<профиль>.service` (systemd user). Один агент = один Telegram-бот/интерфейс. Жёсткая изоляция процессов. Док: `user-guide/multi-profile-gateways.md`.
 
-**Модель B — один мультиплексирующий gateway.** Один процесс принимает сообщения для всех агентов, маршрутизация по `routes:` в `~/.hermes/config.yaml` (платформа/чат/тред/юзер → агент). Экономит RAM и операционку — актуально на 4 GB, когда профилей станет много. Компромисс: слабее изоляция (общий процесс). Дефолт `default_agent: main` — обратная совместимость.
+**Модель B — мультиплекс-gateway** (экономия RAM): один процесс на всех, маршрутизация по `routes:` в `~/.hermes/config.yaml`. На 4 GB может понадобиться позже.
 
-**Безопасность (по SECURITY.md Hermes):** единственная реальная граница — изоляция ОС; терминальный бэкенд `docker` = песочница на агента; секреты через **iron-proxy** (в песочнице только opaque-токены, реальные ключи подменяет прокси на хосте; биндится на docker0-bridge, не 0.0.0.0); egress-фильтрация сети. Чат-шлюзам входящие порты не нужны (long-polling/websocket наружу) — идеально под наш tailnet-only файрвол.
+**Безопасность:** docker-песочница на агента (terminal backend) + iron-proxy (opaque-токены, реальные ключи только на хосте); чат-шлюзам входящие порты не нужны — под tailnet-only файрвол идеально.
 
-**Шаги:**
-1. Установка Hermes на хост под devuser (по официальной инструкции; uv/pip).
-2. `hermes agent add <имя>` для каждого агента + токены ботов в профилях.
-3. `hermes gateway install`/`start` на профиль — systemd-сервисы.
-4. Sandbox-бэкенд: docker (уже есть) + iron-proxy с реальными ключами только в env хоста.
-5. Нагрузка: каждый профиль — лёгкий python-процесс; песочницы поднимаются по требованию. На 4 GB начнём с 2–3 агентов, смотрим lazydocker/`docker stats`.
+**Шаги:** установка Hermes под devuser → `agent add family` (+ Telegram-бот токен) → `gateway install`/`start` → docker-сандбоксы + iron-proxy → второй агент `student` аналогично.
 
-## Ресурсный итог (2 CPU / 4 GB / 60 GB)
+## Ресурсы (2 CPU / 4 GB / 60 GB)
 
-- Лендинг: ~20 MB RAM (caddy).
-- SWAPP: postgres + FastAPI + caddy ≈ 500–800 MB.
-- Hermes: 1 процесс-шлюз на профиль + песочницы по требованию ≈ 300–500 MB на активного агента.
-- Запас есть, но `docker stats` и ротация логов (уже в daemon.json) — обязательны.
+Caddy+router ~50 MB · лендинг в router ~0 · SWAPP ~500–800 MB · Hermes ~300–500 MB на активного агента. `docker stats` + local-логи (уже в daemon.json) обязательны.
 
-## Открытые вопросы для Roman
+## Открытые вопросы
 
-- Какой домен для лендинга и где файлы сайта (какой репо/папка)?
-- Токены SWAPP: бот уже создан в BotFather? Есть ли сохранённые значения `.env` со старого сервера (вайп всё стёр)?
-- Hermes: какие первые агенты (имена + платформы — Telegram/Slack/др.) и чьи модели/API-ключи?
+- Лендинг: какой slug/финальный домен и где собранные файлы (какой репо)?
+- SWAPP: есть ли живые токены бота (вайп стёр старый `.env`)?
+- Hermes: API-ключи моделей для профилей (через iron-proxy на хосте)?
 
 #vps #debian #docker

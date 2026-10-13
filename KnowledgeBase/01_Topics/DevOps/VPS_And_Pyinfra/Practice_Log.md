@@ -28,10 +28,12 @@
 - ✅ `daemon.json` добавлен в deploy.py (`local` логи + live-restore) — применить `sudo systemctl restart docker` при следующем заходе
 - ✅ `daemon.json` применён прогоном + `systemctl restart docker`; теперь все повторные прогоны — «No changes»
 - ✅ на Windows: DockerCLI + Compose plugin + lazydocker; `docker context vps` через ssh-алиас
-- ✅ план трёх проектов расписан: [[Deploy_Plan_Giorno]] (лендинг → SWAPP → Hermes multi-agent)
-- ⬜ дальше по треку: шаг 5–6 (инвентарь уже есть; перенос харденинга руками → кодом), деплои по плану
+- ✅ план проектов расписан: [[Deploy_Plan_Giorno]] — **через платформу botops-deploy** (скилл Roman'а под этот же сервер: общий Caddy 80/443 + granit-staging_default + vibe-router + botops-static/compose скрипты). Восстановление: `/srv/botops` + сеть + router (student-share-codex на GH) + codex-vibe-data + skill/bin symlink + ops-homebase
+- ✅ вводные: лендинг на `*.67.barabashka.pro`; SWAPP домен тот же (`swapp.apps.botops.ru`, в репо уже есть `compose.botops.yml` — интеграция готова); Hermes: 1-й агент семейный, дальше студенты (геймификация/домашки)
+- ⬜ dev-цепочка в deploy.py: git + build-essential + uv (~/.local/bin, per-user) + pnpm (~/.local/share/pnpm) — сервер = прод + разработка
+- ⬜ дальше по треку: шаг 5–6, восстановление botops → лендинг → SWAPP → Hermes
 
-**Следующий шаг:** ждём вводные — домен+файлы лендинга / токены SWAPP / первые агенты Hermes; параллельно можно шаг 6 [[06_Hardening_As_Code]].
+**Следующий шаг:** Roman прогоняет обновлённый `deploy.py` (dev-цепочка) → поднимаем botops-инфра по карте README → лендинг.
 
 ## 2026-10-09 — Шаг 1: sudo и пользователь devuser
 
@@ -99,5 +101,6 @@ passwd devuser                                        # задаём devuser н�
 - **Первый прогон pyinfra.** `pyinfra inventory.py exec -- hostname` → `giorno.ptr.network` через tailnet — связь есть. `--dry` показал 2 изменения, pyinfra интерактивно спросил sudo-пароль. Реальный прогон упал на `E: Unable to locate package docker-compose-v2`. **Затык:** `docker-compose-v2` — имя пакета Ubuntu; в Debian его нет вообще (madison пуст по всем suite), а `docker.io` в bookworm — версия 2023 г. **Решение:** официальный репозиторий docker.com — `files.download` GPG в `/etc/apt/keyrings/docker.asc` + `apt.repo` в `sources.list.d/docker.list` + пакеты `docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin`. Тот же drop-in паттерн, что у sshd. Сервер не задело — apt-установка атомарна.
 - **Успешный деплой Docker кодом.** Второй прогон: 4 success + 1 «No changes» (каталог keyrings уже существовал — идемпотентность вживую). Перелогин → `docker ps` без sudo работает. Docker engine + compose v2 из официального репо.
 - **Ресёрч Docker-практик → заметка [[Docker_Best_Practices]].** Ключевое: (1) `docker -p` обходит ufw через DNAT/FORWARD — «пустой» файрвол не защищает опубликованные порты, биндим к конкретным IP (`127.0.0.1`, tailnet `100.x`, публично только caddy); (2) `daemon.json`: `local` log-driver (json-file не ротирует — диск 60 GB) + `live-restore`; (3) `docker context create vps --docker "host=ssh://vps"` — управление с Windows без входа по SSH; (4) compose-гигиена (.env, healthcheck, restart, пины версий); (5) `docker system df/prune` для диска. В `deploy.py` добавлен `files.put` daemon.json.
+- **Платформа botops-deploy.** У Roman есть готовый скилл-репо `botops-deploy` под этот сервер: общий Caddy на 80/443 + on-demand TLS через vibe-router (`/internal/tls-check`), статика `botops-static` (иммутабельные артефакты + атомарный live-symlink + rollback), compose-приложения `botops-compose` (external-сеть `granit-staging_default`, override-маршруты `/srv/botops/staging-overrides/*.caddy`, deploy по sha с auto-rollback по health). В `eco-swapp-minsk` уже лежит `compose.botops.yml` — SWAPP был подключён до вайпа. Клонируемо с GitHub: botops-deploy, student-share-codex (router), ops-homebase (реестр).
 
 #vps #debian
