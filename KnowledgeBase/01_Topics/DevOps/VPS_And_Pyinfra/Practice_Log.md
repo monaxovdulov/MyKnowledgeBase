@@ -20,10 +20,11 @@
 - ✅ `apt update && apt upgrade -y` + `apt install ufw fail2ban unattended-upgrades` — выполнены
 - ✅ ufw включён: `allow OpenSSH` → `enable` → «Firewall is active and enabled on system startup», сессия не порвалась
 - ✅ fail2ban: `jail.local` (`[sshd] enabled = true`) + `enable --now` — запущен
+- ✅ **Tailscale готов**: сервер `giorno-1` в tailnet, клиент на Windows, exit node проверен; `ssh devuser@100.x` работает, `HostName` в `~/.ssh/config` → 100.x; публичный 22 закрыт (`ufw allow in on tailscale0` + `delete allow OpenSSH`) — SSH только внутри tailnet
 - ⬜ Docker (`docker.io`, `docker-compose-v2`, `usermod -aG docker devuser`) — не ставили
-- ⏳ **Tailscale**: сервер в tailnet как `giorno-1`; клиент на Windows подключён; **exit node настроен и проверен** (sysctl forwarding + `tailscale set --advertise-exit-node` + аппрув в консоли — трафик ПК идёт через VPS). Затык: SSH-сессия упала (`Connection reset`) при включении exit node — вход шёл через публичный IP и переехал в собственный туннель. Решение: `ssh devuser@100.x` через tailnet-адрес → потом `ufw allow in on tailscale0` + `delete allow OpenSSH` — SSH закрываем из публички
+- ⬜ pyinfra на Windows — шаг 4 не начат
 
-**Следующий шаг:** `tailscale ip -4` на сервере → `ssh devuser@100.x` проверка → `HostName 100.x` в `~/.ssh/config` → `ufw allow in on tailscale0` + `delete allow OpenSSH` → Docker → шаг 4 [[04_Install_Pyinfra_On_Windows]] (pyinfra на Windows).
+**Следующий шаг:** Docker на сервере → шаг 4 [[04_Install_Pyinfra_On_Windows]]: `uv tool install pyinfra` → `pyinfra vps exec -- hostname` / `pyinfra vps fact server.Os` → дальше шаг 5 (inventory + первый deploy).
 
 ## 2026-10-09 — Шаг 1: sudo и пользователь devuser
 
