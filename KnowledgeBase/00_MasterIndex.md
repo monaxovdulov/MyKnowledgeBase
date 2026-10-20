@@ -8,6 +8,7 @@
 - [[LLM_MOC]]
 - [[RL_MOC]]
 - [[VPS_And_Pyinfra_MOC]] — Debian VPS с нуля через pyinfra (aeza, Windows)
+- [[Iva_Agent_MOC]] — self-hosted Telegram-ассистент Iva на giorno: устройство, учебный контур (тьютор в топиках)
 
 ## Разделы
 
