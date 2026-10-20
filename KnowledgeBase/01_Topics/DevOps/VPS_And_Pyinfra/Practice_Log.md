@@ -150,3 +150,10 @@ passwd devuser                                        # задаём devuser н�
 - **Кодом:** `agents.py::hermes_runtime()` — mkdir каркаса, guarded clone `NousResearch/hermes-agent` в `~/ai-projects`, guarded `docker build -t hermes-agent`, `files.put` шаблона и README. Секреты агентов в код не идут — per-agent `.env` вручную.
 - **Секреты модели:** `.env` агента — только секреты (по правилам самого hermes: поведение в config.yaml, .env = secrets only).
 - Первый агент `family`: каталог создан; ждёт модель+ключ и TG-бот токен от Roman'а.
+
+## 2026-10-20 — Падение сервера и восстановление
+
+- **Симптом у Roman'а:** `ssh vps` → `Connection timed out` на 46.226.165.215:22. Проверка с VM Devin: `giorno-1` в tailnet жив, ping идёт, SSH по 100.82.224.13 работает. Причина таймаута на его стороне — запрос шёл на публичный IP, где порт 22 закрыт по дизайну (единственное правило ufw — tailscale0). На Windows проверять: tailscale-клиент подключён + `HostName` в `~/.ssh/config` = `100.82.224.13`.
+- **Причина рестарта:** чистый `system down` → `system boot` с минутным разрывом 2026-10-20 12:25→12:26, ядро сменилось 6.1.0-26 → 6.1.0-53 — штатный ребут после обновления ядра (unattended-upgrades/панель aeza), НЕ крах от нагрузки. uptime на момент проверки — минуты.
+- **Последствия:** контейнеры caddy+router поднялись сами по `restart: unless-stopped`; swapp app/db лежали `Exited 255` — restart-политики в compose не было. Поднял `compose up -d`; постфикс `docker update --restart unless-stopped` на app+db → теперь переживают ребут. Проверки: `https://swapp.apps.botops.ru` → 200, `/telegram/webhook` POST → 401 (проверка secret_token на месте — штатно для неподписанного запроса).
+- **Уроки:** (1) любые долгоживущие контейнеры — только с явной restart-политикой, проверять `docker inspect` после деплоя; (2) `compose up -d` без имён сервисов поднимает ВСЁ из файла — у swapp это дёрнул лишний `eco-swapp-minsk-caddy-1` (порт 80 занят общим caddy → failsafe, безвредно); на botops-хосте поднимать точечно `up -d db app`; (3) «сервер не отвечает по ssh» ≠ «сервер мёртв» — сначала проверить жив ли tailnet-адрес.
