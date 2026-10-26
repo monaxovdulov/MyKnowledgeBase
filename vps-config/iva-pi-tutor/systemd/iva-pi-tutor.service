@@ -1,0 +1,19 @@
+[Unit]
+Description=Pi Telegram tutor
+
+[Service]
+Type=simple
+WorkingDirectory=/home/devuser/MyKnowledgeBase/vps-config/iva-pi-tutor
+EnvironmentFile=/home/devuser/MyKnowledgeBase/vps-config/iva-pi-tutor/.env
+ExecStart=/home/devuser/.nvm/versions/node/v24.22.1/bin/node /home/devuser/MyKnowledgeBase/vps-config/iva-pi-tutor/src/main.mjs
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/devuser/MyKnowledgeBase/vps-config/iva-pi-tutor/data
+
+[Install]
+WantedBy=default.target
