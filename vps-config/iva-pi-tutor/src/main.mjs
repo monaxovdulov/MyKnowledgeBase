@@ -364,6 +364,7 @@ async function poll() {
           }
         });
       }
+      await serial;
     } catch (error) {
       console.error("Telegram polling failed:", error.message);
       await new Promise((resolve) => setTimeout(resolve, 3000));
